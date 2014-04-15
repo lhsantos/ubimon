@@ -2,7 +2,7 @@
 
 This is a very simple pokemon clone that exercises ubiquitous computing, also called pervasive computing [1], principles to enhance game experience. The game focuses on capturing monsters around the world (yeah, the actual world) using your current geographical location as an indicator of what type of monster you are able to capture. Go near a lake or river, a capture water types, go to a high place and capture flying types, you get the idea... Find fellow trainer in your journey and you'll have the chance to check what they already captured and, maybe you can catch something different when you do that. Now run and go catch'em all! Check the [Wiki](https://github.com/lhsantos/ubimon/wiki) for tutorials.
 
-This is the fornmal definition of the game, following Schell's elemental tetrad of game design[2]:
+This is the formal definition of the game, following Schell's elemental tetrad of game design[2]:
 
 ####Aesthetics####
 
@@ -29,9 +29,9 @@ There's something strange going on... Weird creatures are poping out from nowher
 
 ####Technology####
 
-This game uses the uOS middleware (links bellow) to establish the basic communication infrastructure in the ubiquitous computing smart space and Unity 3D as its game engine. The game will be playable in PC (Windows, Linux and Mac) and portable devices (Android and iOS).
+This game uses the uOS middleware\[3\] (links bellow) to establish the basic communication infrastructure in the ubiquitous computing smart space and Unity 3D as its game engine. The game will be playable in PC (Windows, Linux and Mac) and portable devices (Android and iOS).
 
-With regards to the ubiquitous infrastructure, the game will use the following DSOA elements:
+With regards to the ubiquitous infrastructure, the game will use the following DSOA\[4\] elements:
 
 - The main game server will be modeled as a device (on the web?) the provides the drivers to track players, ubimon and places. The services of each driver include listing, according to the given position, and loging in and registering the current position, in case of the player driver.
 
@@ -45,5 +45,7 @@ With regards to the ubiquitous infrastructure, the game will use the following D
 
 ##References##
 ====
-1. WEISER, Mark. 1991. **The Computer for the 21st Century**. http://dl.acm.org/citation.cfm?id=329126.]
+1. WEISER, Mark. 1991. **The Computer for the 21st Century**. http://dl.acm.org/citation.cfm?id=329126.
 2. SCHELL, Jesse. 2008. **The Art of Game Design: A Book of Lenses**. Morgan Kaufmann Publishers Inc. San Francisco, CA, USA.
+3. BUZETO, Fabricio N. 2013. **uOS: A resource rerouting middleware for ubiquitous games**. Ubiquitous Intelligence and Computing, 2013 IEEE 10th International Conference on and 10th International Conference on Autonomic and Trusted Computing (UIC/ATC).
+4. BUZETO, Fabricio N. 2010. **DSOA: A service oriented architecture for ubiquitous applications**. 5th International Conference, GPC 2010, Hualien, Taiwan, May 10-13, 2010.
