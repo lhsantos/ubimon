@@ -31,6 +31,12 @@ There's something strange going on... Weird creatures are poping out from nowher
 
 This game uses the uOS middleware (links bellow) to establish the basic communication infrastructure in the ubiquitous computing smart space and Unity 3D as its game engine. The game will be playable in PC (Windows, Linux and Mac) and portable devices (Android and iOS).
 
+With regards to the ubiquitous infrastructure, the game will use the following DSOA elements:
+
+- The main game server will be modeled as a device (on the web?) the provides the drivers to track players, ubimon and places. The services of each driver include listing, according to the given position, and loging in and registering the current position, in case of the player driver.
+
+- A local google maps driver will provide an abstraction to the google maps service API. The driver will have the service of rendering the world map given a coordinate.
+
 
 ##Links##
 
