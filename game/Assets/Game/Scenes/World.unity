@@ -86,7 +86,9 @@ GameObject:
   - 92: {fileID: 378386698}
   - 124: {fileID: 378386697}
   - 81: {fileID: 378386696}
+  - 114: {fileID: 378386702}
   - 114: {fileID: 378386701}
+  - 114: {fileID: 378386703}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -171,6 +173,33 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e750cb55b408ea845a20149fac11598a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &378386702
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 378386695}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 01de5a8ebcf88524295045d85b9545cc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &378386703
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 378386695}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b93d2ce334120dd4a900cf09567ca444, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  defaultLatitude: -15.8315754
+  defaultLongitude: -47.9830132
+  defaultDelta: 100
+  desiredAccuracy: 5
+  updateDistace: 5
 --- !u!1 &1998920772
 GameObject:
   m_ObjectHideFlags: 0
@@ -182,6 +211,7 @@ GameObject:
   - 33: {fileID: 1998920776}
   - 64: {fileID: 1998920775}
   - 23: {fileID: 1998920774}
+  - 114: {fileID: 1998920778}
   - 114: {fileID: 1998920773}
   m_Layer: 0
   m_Name: Background
@@ -253,3 +283,20 @@ Transform:
   m_Children: []
   m_Father: {fileID: 378386700}
   m_RootOrder: 0
+--- !u!114 &1998920778
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1998920772}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d5cfd1d5cfab1e4cb28e91796459951, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  minUpdateInterval: 4
+  zoom: 21
+  mapType: 1
+  mapWidth: 640
+  mapHeight: 640
+  doubleResolution: 1

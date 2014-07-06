@@ -227,6 +227,7 @@ namespace UOS
             StreamConnectionThreadData[] streamConData = null;
 
             CallContext messageContext = new CallContext();
+
             messageContext.callerNetworkDevice = new LoopbackDevice(1);
 
             // In case of a Stream Service, a Stream Channel must be opened
@@ -248,40 +249,23 @@ namespace UOS
         }
 
         private Response RemoteServiceCall(
-            UpDevice device,
+            UpDevice target,
             Call serviceCall,
             StreamConnectionThreadData[] streamData,
             CallContext messageContext)
         {
-            ClientConnection con = null;
             try
             {
-                // Opens a connection to the remote device.
-                UpNetworkInterface netInt = GetAppropriateInterface(device);
-                con = OpenActiveConnection(netInt.networkAddress, netInt.netType);
-                if (con == null)
-                    throw new System.Exception("Couldn't connect to target.");
-
                 // Encodes and sends call message.
-                string call = Json.Serialize(serviceCall.ToJSON()) + "\n";
-                Debug.Log(call);
-                byte[] data = Encoding.UTF8.GetBytes(call);
-                con.Write(data, 0, data.Length);
-
-                // Gets response.
-                Response r = null;
-                string returnedMessage = null;
-
-                data = con.Read();
-                if (data != null)
-                    returnedMessage = Encoding.UTF8.GetString(data);
-                if (returnedMessage != null)
+                string msg = Json.Serialize(serviceCall.ToJSON()) + "\n";
+                Debug.Log(msg);
+                Response r;
+                string responseMsg = SendMessage(msg, target);
+                if (responseMsg != null)
                 {
-                    Debug.Log(returnedMessage);
-                    r = Response.FromJSON(Json.Deserialize(returnedMessage));
+                    Debug.Log(responseMsg);
+                    r = Response.FromJSON(Json.Deserialize(responseMsg));
                     r.messageContext = messageContext;
-
-                    con.Close();
                     return r;
                 }
                 else
@@ -289,10 +273,50 @@ namespace UOS
             }
             catch (System.Exception e)
             {
-                if (con != null)
-                    con.Close();
                 CloseStreams(streamData);
                 throw new ServiceCallException(e);
+            }
+        }
+
+        private string SendMessage(string msg, UpDevice target, bool waitForResponse = true)
+        {
+            UpNetworkInterface netInt = GetAppropriateInterface(target);
+            string networkAddress = netInt.networkAddress;
+            string networkType = netInt.netType;
+
+            ClientConnection con = OpenActiveConnection(networkAddress, networkType);
+            if (con == null)
+            {
+                logger.LogWarning("Not possible to stablish a connection with '" + networkAddress + "' of type '" + networkType + "'.");
+                return null;
+            }
+
+            try
+            {
+                byte[] data = Encoding.UTF8.GetBytes(msg);
+                con.Write(data, 0, data.Length);
+
+
+                // Gets response.
+                string response = null;
+                if (waitForResponse)
+                {
+                    data = con.Read();
+                    if (data != null)
+                    {
+                        response = Encoding.UTF8.GetString(data);
+                        if (response.Trim().Length == 0)
+                            response = null;
+                    }
+                }
+                con.Close();
+                return response;
+            }
+            catch (System.Exception)
+            {
+                if (con.connected)
+                    con.Close();
+                throw;
             }
         }
 
@@ -323,9 +347,14 @@ namespace UOS
             NetworkDevice netDevice = messageContext.callerNetworkDevice;
             if (netDevice != null)
             {
-                string addr = Util.GetHost(netDevice.networkDeviceName);
-                string type = netDevice.networkDeviceType;
-                messageContext.callerDevice = deviceManager.RetrieveDevice(addr, type);
+                if (netDevice is LoopbackDevice)
+                    messageContext.callerDevice = currentDevice;
+                else
+                {
+                    string addr = Util.GetHost(netDevice.networkDeviceName);
+                    string type = netDevice.networkDeviceType;
+                    messageContext.callerDevice = deviceManager.RetrieveDevice(addr, type);
+                }
             }
 
             if (IsApplicationCall(serviceCall))
@@ -341,6 +370,114 @@ namespace UOS
         private bool IsApplicationCall(Call serviceCall)
         {
             return (serviceCall.driver != null) && serviceCall.driver.Equals("app", System.StringComparison.InvariantCultureIgnoreCase);
+        }
+
+        public void Register(
+            UOSEventListener listener,
+            UpDevice device,
+            string driver,
+            string instanceId = null,
+            string eventKey = null,
+            IDictionary<string, object> parameters = null)
+        {
+            // If the listener is already registered it cannot be registered again
+            string eventIdentifier = GetEventIdentifier(device, driver, instanceId, eventKey);
+            logger.Log("Registering listener for event :" + eventIdentifier);
+
+            List<ListenerInfo> list;
+            if (!listenerMap.TryGetValue(eventIdentifier, out list))
+                list = null;
+
+            if (FindListener(listener, list) == null)
+            {
+                ListenerInfo info = new ListenerInfo();
+
+                info.driver = driver;
+                info.instanceId = instanceId;
+                info.eventKey = eventKey;
+                info.listener = listener;
+                info.device = device;
+
+                RegisterNewListener(device, parameters, eventIdentifier, info);
+            }
+        }
+
+        /// <summary>
+        /// Removes a listener for receiving Notify events and notifies the event driver of its removal.
+        /// </summary>
+        /// <param name="listener"></param>
+        /// <param name="device"></param>
+        /// <param name="driver"></param>
+        /// <param name="instanceId"></param>
+        /// <param name="eventKey"></param>
+        public void Unregister(
+            UOSEventListener listener,
+            UpDevice device = null,
+            string driver = null,
+            string instanceId = null,
+            string eventKey = null)
+        {
+            List<ListenerInfo> listeners = FindListeners(device, driver, instanceId, eventKey);
+            if (listeners == null)
+                return;
+
+            System.Exception e = null;
+            foreach (var li in listeners)
+            {
+                // only if its the same listener, it should be removed
+                if (li.listener.Equals(listener))
+                {
+                    bool remove = true;
+
+                    // If the driver name is informed, and it's not the same, it must not be removed
+                    if ((driver != null) && (li.driver != null))
+                        remove = remove && li.driver.Equals(driver, System.StringComparison.InvariantCultureIgnoreCase);
+
+                    // If the instanceId is informed, and it's not the same, it must not be removed
+                    if ((instanceId != null) && (li.instanceId != null))
+                        remove = remove && li.instanceId.Equals(instanceId, System.StringComparison.InvariantCultureIgnoreCase);
+
+                    if (remove)
+                    {
+                        try
+                        {
+                            //Notify device of the listener removal
+                            UnregisterForEvent(li);
+
+                        }
+                        catch (System.Exception ex)
+                        {
+                            string id = GetEventIdentifier(device, driver, instanceId, eventKey);
+                            logger.LogError("Failed to unregister for event " + id + ": " + e.Message);
+                            e = ex;
+                        }
+                    }
+                }
+            }
+
+            if (e != null)
+                throw e;
+        }
+
+        private void UnregisterForEvent(ListenerInfo listenerInfo)
+        {
+            // Send the event register request to the called device
+            Call call = new Call(listenerInfo.driver, UNREGISTER_LISTENER_SERVICE, listenerInfo.instanceId);
+            call.AddParameter(REGISTER_EVENT_LISTENER_EVENT_KEY_PARAMETER, listenerInfo.eventKey);
+
+            Response response = CallService(listenerInfo.device, call);
+            if (response == null)
+                throw new ServiceCallException("No response receive from unregister service call.");
+            if (!string.IsNullOrEmpty(response.error))
+                throw new ServiceCallException(response.error);
+        }
+
+        public void Notify(Notify notify, UpDevice device)
+        {
+            if (IsLocalCall(device))
+                HandleNotify(notify, device);
+            else
+                RemoteNotify(notify, device);
         }
 
         public void HandleNotify(Notify notify, UpDevice device)
@@ -406,6 +543,108 @@ namespace UOS
                 id.Append("#" + instanceId);
 
             return id.ToString();
+        }
+
+        private List<ListenerInfo> FindListeners(UpDevice device, string driver, string instanceId, string eventKey)
+        {
+            List<ListenerInfo> listeners = null;
+
+            // First filter the listeners by the event key.
+            if (eventKey == null)
+            {
+                // In this case all eventKeys must be checked for the listener to be removed.
+                listeners = new List<ListenerInfo>();
+                foreach (var list in listenerMap.Values)
+                    listeners.AddRange(list);
+            }
+            else
+            {
+                // In case a eventKey is informed, then only the listeners for that event key must be used.
+                string eventIdentifier = GetEventIdentifier(device, driver, instanceId, eventKey);
+                if (!listenerMap.TryGetValue(eventIdentifier, out listeners))
+                    listeners = null;
+            }
+
+            return listeners;
+        }
+
+        private ListenerInfo? FindListener(UOSEventListener listener, List<ListenerInfo> list)
+        {
+            if ((list != null) && (listener != null))
+            {
+                int pos = list.FindIndex(i => i.listener.Equals(listener));
+                if (pos >= 0)
+                    return list[pos];
+            }
+
+            return null;
+        }
+
+        private void RegisterNewListener(
+            UpDevice device,
+            IDictionary<string, object> parameters,
+            string eventIdentifier,
+            ListenerInfo info)
+        {
+            if (device != null)
+                SendRegister(device, parameters, info);
+
+            // If the registry process goes ok, then add the listenner to the listener map
+            List<ListenerInfo> listeners = null;
+            if (!listenerMap.TryGetValue(eventIdentifier, out listeners))
+                listenerMap[eventIdentifier] = listeners = new List<ListenerInfo>();
+            listeners.Add(info);
+            logger.Log("Registered listener for event :" + eventIdentifier);
+        }
+
+        private void SendRegister(UpDevice device, IDictionary<string, object> parameters, ListenerInfo info)
+        {
+            // Send the event register request to the called device
+            Call serviceCall = new Call(info.driver, REGISTER_LISTENER_SERVICE, info.instanceId);
+            serviceCall.AddParameter(REGISTER_EVENT_LISTENER_EVENT_KEY_PARAMETER, info.eventKey);
+            if (parameters != null)
+            {
+                foreach (var pair in parameters)
+                {
+                    if (pair.Key.Equals(REGISTER_EVENT_LISTENER_EVENT_KEY_PARAMETER, System.StringComparison.InvariantCultureIgnoreCase))
+                        throw new System.ArgumentException("Can't use reserved keys as parameters for registerForEvent");
+                    serviceCall.AddParameter(pair.Key, pair.Value);
+                }
+            }
+
+            Response response = CallService(device, serviceCall);
+            if (response == null)
+                throw new System.Exception("No response received during register process.");
+            else if (!string.IsNullOrEmpty(response.error))
+                throw new System.Exception(response.error);
+        }
+
+        private Call BuildRegisterCall(IDictionary<string, object> parameters, ListenerInfo info)
+        {
+            Call serviceCall = new Call(info.driver, REGISTER_LISTENER_SERVICE, info.instanceId);
+            serviceCall.AddParameter(REGISTER_EVENT_LISTENER_EVENT_KEY_PARAMETER, info.eventKey);
+            if (parameters != null)
+            {
+                foreach (var pair in parameters)
+                {
+                    if (pair.Key.Equals(REGISTER_EVENT_LISTENER_EVENT_KEY_PARAMETER, System.StringComparison.InvariantCultureIgnoreCase))
+                        throw new System.ArgumentException("Can't use reserved keys as parameters for registerForEvent");
+                    serviceCall.AddParameter(pair.Key, pair.Value);
+                }
+            }
+            return serviceCall;
+        }
+
+        private void RemoteNotify(Notify notify, UpDevice device)
+        {
+            if (
+                    device == null || notify == null ||
+                    string.IsNullOrEmpty(notify.driver) ||
+                    string.IsNullOrEmpty(notify.eventKey))
+                throw new System.ArgumentException("Either the device or notification is invalid.");
+
+            string message = Json.Serialize(notify.ToJSON());
+            SendMessage(message, device, false);
         }
 
         private void PrepareChannels()

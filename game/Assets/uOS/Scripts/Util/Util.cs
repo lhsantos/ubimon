@@ -160,5 +160,23 @@ namespace UOS
         {
             return networkDeviceName.Split(':')[1];
         }
+
+        public static T ConvertOrParse<T>(object v)
+        {
+            if (v is T)
+                return (T)v;
+            else
+            {
+                Type t = typeof(T);
+                var method = t.GetMethod("Parse", new Type[] { typeof(string) });
+                if ((method != null) && method.IsPublic && method.IsStatic)
+                {
+                    try { return (T)method.Invoke(null, new object[] { v.ToString() }); }
+                    catch (System.Reflection.TargetInvocationException e) { throw e.InnerException; }
+                }
+                else
+                    throw new System.ArgumentException("Cannot convert or parse this value.");
+            }
+        }
     }
 }

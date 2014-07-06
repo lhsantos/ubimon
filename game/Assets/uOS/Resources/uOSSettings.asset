@@ -24,4 +24,4 @@ MonoBehaviour:
     provider: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
     client: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB
   deviceName: unity
-  radarType: 0
+  radarType: 3

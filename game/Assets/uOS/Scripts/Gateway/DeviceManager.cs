@@ -137,7 +137,7 @@ namespace UOS
                 call.AddParameter("device", Json.Serialize(currentDevice.ToJSON()));
 
                 Response response = gateway.CallService(dummyDevice, call);
-                if (response != null && ((response.error == null) || (response.error.Length == 0)))
+                if ((response != null) && string.IsNullOrEmpty(response.error))
                 {
                     // in case of a success greeting process, register the device in the neighborhood database
                     object responseDevice = response.GetResponseData("device");
@@ -254,8 +254,7 @@ namespace UOS
             {
                 Response equivalentDriverResponse = gateway.CallService(upDevice, call);
 
-                if ((equivalentDriverResponse != null) &&
-                    ((equivalentDriverResponse.error == null) || (equivalentDriverResponse.error.Length == 0)))
+                if ((equivalentDriverResponse != null) && string.IsNullOrEmpty(equivalentDriverResponse.error))
                 {
                     string interfaces = equivalentDriverResponse.GetResponseString(INTERFACES_KEY);
 
