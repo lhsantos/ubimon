@@ -58,7 +58,8 @@ namespace UOS
 #endif
 
 
-
+        //ubiquitos.uos.deviceName=unity_uos
+        public string deviceName = "unity_uos";
 
         //ubiquitos.radar=br.unb.unbiquitous.ubiquitos.network.ethernet.radar.EthernetArpRadar
         //ubiquitos.connectionManager=org.unbiquitous.uos.network.socket.connectionManager.EthernetTCPConnectionManager, org.unbiquitous.uos.network.socket.connectionManager.EthernetUDPConnectionManager
@@ -74,10 +75,12 @@ namespace UOS
         //    org.unbiquitous.uos.core.driver.OntologyDriverImpl;\
         //    org.unbiquitous.uos.core.driver.UserDriver(My_user_driver);
 
-        //ubiquitos.uos.deviceName=DublinDevice
-        public string deviceName = "DublinDevice";
-
         public RadarType radarType;
+
+        /// <summary>
+        /// Name of the driver classes to load.
+        /// </summary>
+        public string[] drivers;
     }
 
     //ubiquitos.eth.tcp

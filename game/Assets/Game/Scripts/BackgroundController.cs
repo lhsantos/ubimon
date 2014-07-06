@@ -19,24 +19,16 @@ public class BackgroundController : MonoBehaviour
     /// </summary>
     void LateUpdate()
     {
+        int size = Mathf.Max(Screen.width, Screen.height);
+
         // Updates game object size.
-        float nh = 2 * Camera.main.orthographicSize;
-        float nw = Camera.main.aspect * nh;
-        transform.localScale = new Vector3(nw, nh, 1);
+        float scale = 2 * size * Camera.main.orthographicSize / Screen.height;
+        transform.localScale = new Vector3(scale, scale, 1);
 
         // Updates gmaps texture size.
-        int w = Screen.width, h = Screen.height;
-        if (w > GoogleMapsDriver.MAX_MAP_WIDTH)
-        {
-            w = GoogleMapsDriver.MAX_MAP_WIDTH;
-            h = Mathf.FloorToInt((float)GoogleMapsDriver.MAX_MAP_WIDTH * h / w);
-        }
-        if (h > GoogleMapsDriver.MAX_MAP_HEIGHT)
-        {
-            h = GoogleMapsDriver.MAX_MAP_HEIGHT;
-            h = Mathf.FloorToInt((float)GoogleMapsDriver.MAX_MAP_HEIGHT * w / h);
-        }
-        gmaps.mapWidth = w;
-        gmaps.mapHeight = h;
+        size = Mathf.Min(GoogleMapsDriver.MAX_MAP_WIDTH, size);
+        size = Mathf.Min(GoogleMapsDriver.MAX_MAP_HEIGHT, size);
+
+        gmaps.mapWidth = gmaps.mapHeight = size;
     }
 }

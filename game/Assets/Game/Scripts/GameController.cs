@@ -77,8 +77,8 @@ public class GameController : MonoBehaviour, UOSApplication, UOSEventListener, L
         Rect posRect = new Rect(border.x, border.y, area.x, 0.1f * area.y);
         Rect logRect = new Rect(border.x, border.y + 0.1f * area.y, area.x, 0.9f * area.y);
 
-        GUI.TextArea(posRect, "Pos: " + latitude + "," + longitude + ": " + delta);
-        GUI.TextArea(logRect, myLog);
+        //GUI.TextArea(posRect, "Pos: " + latitude + "," + longitude + ": " + delta);
+        //GUI.TextArea(logRect, myLog);
     }
 
 
@@ -87,9 +87,6 @@ public class GameController : MonoBehaviour, UOSApplication, UOSEventListener, L
     void UOSApplication.Init(IGateway gateway, uOSSettings settings)
     {
         this.gateway = (UnityGateway)gateway;
-        this.gateway.driverManager.DeployDriver(GoogleMapsDriver.main.GetDriver(), GoogleMapsDriver.main);
-        this.gateway.driverManager.DeployDriver(GlobalPositionDriver.main.GetDriver(), GlobalPositionDriver.main);
-        this.gateway.driverManager.InitDrivers();
 
         this.gateway.Register(
             this, gateway.currentDevice, GlobalPositionDriver.DRIVER_ID, null, GlobalPositionDriver.EVENT_POS_CHANGE);

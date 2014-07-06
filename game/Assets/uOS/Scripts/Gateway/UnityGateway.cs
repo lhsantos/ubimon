@@ -670,9 +670,9 @@ namespace UOS
                 currentDevice.name = IPAddress.GetLocalHostName();
 
             if ((currentDevice.name == null) || (currentDevice.name == "localhost"))
-                currentDevice.name = System.Environment.MachineName.ToLower() + "-unity";
+                currentDevice.name = System.Environment.MachineName.ToLower();
 
-            currentDevice.AddProperty("platform", "unity: " + Application.platform.ToString().ToLower());
+            currentDevice.AddProperty("platform", "unity-" + Application.platform.ToString().ToLower());
 
             List<UpNetworkInterface> networks = new List<UpNetworkInterface>();
             foreach (ChannelManager cm in channelManagers.Values)
@@ -689,6 +689,50 @@ namespace UOS
             driverManager = new DriverManager(settings, this, currentDevice);
             deviceManager = new DeviceManager(settings, this, currentDevice);
 
+            foreach (var driver in settings.drivers)
+            {
+                System.Type type = null;
+                try { type = Util.GetType(driver); }
+                catch (System.Exception) { }
+
+                string error = null;
+                object instance = null;
+                if ((type == null) || (type.GetInterface("UOS.UOSDriver") == null) || (!type.IsClass) || (type.IsAbstract))
+                    error = driver + " is not a valid concrete type which implements UOSDriver interface";
+                else
+                {
+                    if (type.IsSubclassOf(typeof(MonoBehaviour)))
+                    {
+                        object[] components = UnityEngine.Object.FindObjectsOfType(type);
+                        if (components.Length == 0)
+                            error = "no instance of MonoBehaviour " + driver + " was found in the scene";
+                        else if (components.Length > 1)
+                            error = "multiple instances of MonoBehaviour " + driver + " were found in the scene";
+                        else
+                            instance = components[0];
+                    }
+                    else
+                    {
+                        try { instance = System.Activator.CreateInstance(type); }
+                        catch (System.Reflection.TargetInvocationException e)
+                        {
+                            error = "constructor exception: " + e.InnerException;
+                        }
+                        catch (System.Exception)
+                        {
+                            error = "couldn't instantiate " + driver + " using default constructor";
+                        }
+                    }
+                }
+
+                if (error != null)
+                    logger.LogError("Driver initialisation failure: " + error + ".");
+                else
+                {
+                    var driverInstance = (UOSDriver)instance;
+                    driverManager.DeployDriver(driverInstance);
+                }
+            }
             driverManager.InitDrivers();
         }
 

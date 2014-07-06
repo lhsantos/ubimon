@@ -178,5 +178,18 @@ namespace UOS
                     throw new System.ArgumentException("Cannot convert or parse this value.");
             }
         }
+
+        public static System.Type GetType(string typeName)
+        {
+            var type = System.Type.GetType(typeName);
+            if (type != null) return type;
+            foreach (var a in System.AppDomain.CurrentDomain.GetAssemblies())
+            {
+                type = a.GetType(typeName);
+                if (type != null)
+                    return type;
+            }
+            return null;
+        }
     }
 }
