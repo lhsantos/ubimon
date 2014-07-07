@@ -2,6 +2,8 @@ package org.ubimon.server;
 
 import java.util.ResourceBundle;
 
+import org.ubimon.server.persistence.Client;
+import org.ubimon.server.persistence.ClientDao;
 import org.unbiquitous.uos.core.InitialProperties;
 import org.unbiquitous.uos.core.UOS;
 import org.unbiquitous.uos.core.adaptabitilyEngine.Gateway;
@@ -21,7 +23,18 @@ public class UbimonServer implements UosApplication {
 	 */
 	public static void main(String[] args) throws Throwable {
 		UOS uos = new UOS();
-		uos.start(ResourceBundle.getBundle(CONFIG_BUNDLE_FILE));
+		InitialProperties props = new InitialProperties(
+				ResourceBundle.getBundle(CONFIG_BUNDLE_FILE));
+		props.put("ubiquitos.application.deploylist",
+				UbimonServer.class.getName());
+		uos.start(props);
+
+		ClientDao dao = new ClientDao();
+		Client c = new Client();
+		dao.save(c);
+
+		Thread.sleep(5000);
+		uos.stop();
 	}
 
 	@Override
