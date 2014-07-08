@@ -21,8 +21,7 @@ public class UbimonServer implements UosApplication {
 	 * @throws Throwable
 	 */
 	public static void main(String[] args) throws Throwable {
-		InitialProperties props = new InitialProperties(
-				ResourceBundle.getBundle(CONFIG_BUNDLE_FILE));
+		InitialProperties props = new InitialProperties(ResourceBundle.getBundle(CONFIG_BUNDLE_FILE));
 		props.addDriver(PositionRegistryDriver.class);
 		props.addApplication(UbimonServer.class);
 
@@ -34,8 +33,7 @@ public class UbimonServer implements UosApplication {
 	}
 
 	@Override
-	public void init(OntologyDeploy knowledgeBase,
-			InitialProperties properties, String appId) {
+	public void init(OntologyDeploy knowledgeBase, InitialProperties props, String appId) {
 	}
 
 	@Override

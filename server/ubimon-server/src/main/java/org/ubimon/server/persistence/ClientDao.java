@@ -12,6 +12,7 @@ import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 
 import org.ubimon.server.model.Client;
+import org.ubimon.server.model.Position;
 
 public class ClientDao {
 	private EntityManager em = null;
@@ -39,8 +40,8 @@ public class ClientDao {
 
 	public List<Client> list() {
 		begin();
-		List<Client> ret = em.createQuery("select c from Client c",
-				Client.class).getResultList();
+		List<Client> ret = em.createQuery("select c from Client c", Client.class)
+				.getResultList();
 		end();
 
 		return ret;
@@ -50,9 +51,11 @@ public class ClientDao {
 		begin();
 		Client c = null;
 		try {
-			c = em.createQuery("select c from Client c where c.id = :id",
-					Client.class).setParameter("id", id).getSingleResult();
-		} catch (NoResultException e) {
+			c = em.createQuery("select c from Client c where c.id = :id", Client.class)
+					.setParameter("id", id)
+					.getSingleResult();
+		}
+		catch (NoResultException e) {
 		}
 		end();
 
@@ -66,14 +69,16 @@ public class ClientDao {
 		Root<Client> root = criteria.from(Client.class);
 		Predicate conjunction = builder.conjunction();
 		if (clientName != null) {
-			conjunction = builder
-					.and(conjunction, builder.equal(root.<Client> get("name"),
-							clientName.trim().toLowerCase()));
+			conjunction = builder.and(
+					conjunction,
+					builder.equal(root.<Client> get("name"), clientName.trim().toLowerCase())
+					);
 		}
 		if (deviceName != null) {
-			conjunction = builder.and(conjunction, builder.equal(root
-					.<Client> get("deviceName"), deviceName.trim()
-					.toLowerCase()));
+			conjunction = builder.and(
+					conjunction,
+					builder.equal(root.<Client> get("deviceName"), deviceName.trim().toLowerCase())
+					);
 		}
 		criteria.where(conjunction);
 		List<Client> ret = em.createQuery(criteria).getResultList();
@@ -82,9 +87,19 @@ public class ClientDao {
 		return ret;
 	}
 
+	public List<Client> find(final Position pos, double range) {
+		List<Client> ret = list();
+		if (ret != null)
+			ret.removeIf(new OutsideRange(pos, range));
+
+		return ret;
+	}
+
 	public void delete(Client c) {
 		begin();
-		em.remove(c);
+		em.createQuery("delete from Client c where c.id = :id")
+				.setParameter("id", c.getId())
+				.executeUpdate();
 		end();
 	}
 
@@ -99,8 +114,8 @@ public class ClientDao {
 	}
 
 	private void begin() {
-		processTimeout();
 		em.getTransaction().begin();
+		processTimeout();
 	}
 
 	private void end() {
@@ -108,14 +123,25 @@ public class ClientDao {
 	}
 
 	private void processTimeout() {
-		em.getTransaction().begin();
-
 		Calendar time = Calendar.getInstance();
 		time.add(Calendar.SECOND, -timeout);
 		em.createQuery("delete from Client c where c.lastUpdate < :time")
 				.setParameter("time", time, TemporalType.TIMESTAMP)
 				.executeUpdate();
+	}
 
-		em.getTransaction().commit();
+	private static class OutsideRange implements java.util.function.Predicate<Client> {
+		private Position center;
+		private double range;
+
+		public OutsideRange(Position center, double range) {
+			this.center = center;
+			this.range = range;
+		}
+
+		@Override
+		public boolean test(Client other) {
+			return !center.withinRange(other.getPosition(), range);
+		}
 	}
 }

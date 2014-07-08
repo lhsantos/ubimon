@@ -8,10 +8,9 @@ public final class JPAUtil {
 	private JPAUtil() {
 	}
 
-	private static final EntityManagerFactory factory = createFactory();
-
-	private static EntityManagerFactory createFactory() {
-		return Persistence.createEntityManagerFactory("ubimon");
+	private static final EntityManagerFactory factory;
+	static {
+		factory = Persistence.createEntityManagerFactory("ubimon");
 	}
 
 	public static EntityManager getEntityManager() {

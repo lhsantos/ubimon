@@ -9,6 +9,9 @@ import org.ubimon.server.model.Client;
 import org.ubimon.server.model.Position;
 import org.ubimon.server.persistence.ClientDao;
 import org.ubimon.server.uos.UosUtil;
+import org.unbiquitous.json.JSONArray;
+import org.unbiquitous.json.JSONException;
+import org.unbiquitous.json.JSONObject;
 import org.unbiquitous.uos.core.InitialProperties;
 import org.unbiquitous.uos.core.UOSLogging;
 import org.unbiquitous.uos.core.adaptabitilyEngine.Gateway;
@@ -39,7 +42,7 @@ public class PositionRegistryDriver implements UosDriver {
 	public void checkIn(Call call, Response response, CallContext context) {
 		try {
 			UosUtil.validateParameters(call, getDriver());
-			Position p = Position.extract(call);
+			Position p = extractPosition(call);
 			String clientName = call.getParameterString("clientName");
 			String metadata = null;
 			Object temp = call.getParameter("metadata");
@@ -62,9 +65,11 @@ public class PositionRegistryDriver implements UosDriver {
 
 				response.addParameter("clientId", c.getId());
 			}
-		} catch (IllegalArgumentException e) {
+		}
+		catch (IllegalArgumentException e) {
 			response.setError(e.getMessage());
-		} catch (Throwable t) {
+		}
+		catch (Throwable t) {
 			logger.log(Level.SEVERE, "check-in fail", t);
 			response.setError("failed to check-in: " + t);
 		}
@@ -77,7 +82,7 @@ public class PositionRegistryDriver implements UosDriver {
 		try {
 			UosUtil.validateParameters(call, getDriver());
 			int id = UosUtil.extractInt(call, "clientId");
-			Position p = Position.extract(call);
+			Position p = extractPosition(call);
 			String metadata = null;
 			Object temp = call.getParameter("metadata");
 			if (temp != null)
@@ -97,11 +102,13 @@ public class PositionRegistryDriver implements UosDriver {
 
 				dao.update(c);
 			}
-		} catch (IllegalArgumentException e) {
+		}
+		catch (IllegalArgumentException e) {
 			response.setError(e.getMessage());
-		} catch (Throwable t) {
+		}
+		catch (Throwable t) {
 			logger.log(Level.SEVERE, "check-in fail", t);
-			response.setError("failed to update: " + t.getMessage());
+			response.setError("failed to update: " + t);
 		}
 	}
 
@@ -116,11 +123,13 @@ public class PositionRegistryDriver implements UosDriver {
 			Client c = dao.find(id);
 			if (c != null)
 				dao.delete(c);
-		} catch (IllegalArgumentException e) {
+		}
+		catch (IllegalArgumentException e) {
 			response.setError(e.getMessage());
-		} catch (Throwable t) {
+		}
+		catch (Throwable t) {
 			logger.log(Level.SEVERE, "check-in fail", t);
-			response.setError("failed to check-out: " + t.getMessage());
+			response.setError("failed to check-out: " + t);
 		}
 	}
 
@@ -128,11 +137,62 @@ public class PositionRegistryDriver implements UosDriver {
 	 * Returns a list of all clients within the range of the given position.
 	 */
 	public void listNeighbours(Call call, Response response, CallContext context) {
+		try {
+			UosUtil.validateParameters(call, getDriver());
+			Position p = extractPosition(call);
+			Double range = UosUtil.extractDouble(call, "range", false);
 
+			List<Client> clients = dao.find(p, range);
+			JSONArray result = new JSONArray();
+			if (clients != null) {
+				for (Client client : clients) {
+					p = client.getPosition();
+
+					JSONObject clientObj = new JSONObject();
+					clientObj.put("name", client.getName());
+					clientObj.put("device", new JSONObject(client.getDeviceDesc()));
+					clientObj.put("latitude", p.getLatitude());
+					clientObj.put("longitude", p.getLongitude());
+					clientObj.put("delta", p.getDelta());
+					clientObj.put("lastUpdate", serializeTimestamp(client.getLastUpdate()));
+					clientObj.put("metadata", client.getMetadata());
+
+					result.put(clientObj);
+				}
+			}
+			response.addParameter("clients", result);
+		}
+		catch (IllegalArgumentException e) {
+			response.setError(e.getMessage());
+		}
+		catch (Throwable t) {
+			logger.log(Level.SEVERE, "check-in fail", t);
+			response.setError("failed to update: " + t);
+		}
 	}
 
-	public ClientDao getDao() {
+	public ClientDao getClientDao() {
 		return dao;
+	}
+
+	private static Position extractPosition(Call call) {
+		Position p = new Position();
+		p.setLatitude(UosUtil.extractDouble(call, "latitude"));
+		p.setLongitude(UosUtil.extractDouble(call, "longitude"));
+		p.setDelta(UosUtil.extractDouble(call, "delta"));
+		return p;
+	}
+
+	private static JSONObject serializeTimestamp(Calendar timestamp)
+			throws JSONException {
+		JSONObject obj = new JSONObject();
+		obj.put("year", timestamp.get(Calendar.YEAR));
+		obj.put("month", timestamp.get(Calendar.MONTH));
+		obj.put("day", timestamp.get(Calendar.DAY_OF_MONTH));
+		obj.put("hour", timestamp.get(Calendar.HOUR_OF_DAY));
+		obj.put("minute", timestamp.get(Calendar.MINUTE));
+		obj.put("second", timestamp.get(Calendar.SECOND));
+		return obj;
 	}
 
 	// UosDriver interface...

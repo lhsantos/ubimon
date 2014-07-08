@@ -37,10 +37,8 @@ public final class UosUtil {
 		Map<String, ParameterType> params = service.getParameters();
 
 		for (String param : params.keySet()) {
-			if ((params.get(param) == ParameterType.MANDATORY)
-					&& (call.getParameter(param) == null))
-				throw new IllegalArgumentException("parameter '" + param
-						+ "' not provided");
+			if ((params.get(param) == ParameterType.MANDATORY) && (call.getParameter(param) == null))
+				throw new IllegalArgumentException("parameter '" + param + "' not provided");
 		}
 	}
 
@@ -60,6 +58,61 @@ public final class UosUtil {
 	 *            The call.
 	 * @param param
 	 *            The parameter name.
+	 * @param required
+	 *            If this parameter is required.
+	 * 
+	 * @return The extracted value.
+	 * 
+	 * @throws IllegalArgumentException
+	 *             if the parameter is required and not present or is not a
+	 *             valid integer or integer string representation.
+	 */
+	public static Integer extractInt(Call call, String param, boolean required) {
+		Object value = call.getParameter(param);
+		if (value != null) {
+			if (value instanceof Number)
+				return ((Number) value).intValue();
+			if (value instanceof String)
+				return Integer.parseInt((String) value);
+
+			throw new IllegalArgumentException("invalid value for parameter '" + param + "'");
+		} else {
+			if (required)
+				throw new IllegalArgumentException("parameter '" + param + "' not provided");
+			return null;
+		}
+	}
+
+	/**
+	 * Extracts the integer value of a service call's parameter, if existent and
+	 * valid.
+	 * 
+	 * @param call
+	 *            The call.
+	 * @param param
+	 *            The parameter name.
+	 * @param type
+	 *            The uOS type of this parameter.
+	 * 
+	 * @return The extracted value.
+	 * 
+	 * @throws IllegalArgumentException
+	 *             if the parameter is {@link ParameterType#MANDATORY} and not
+	 *             present or is not a valid integer or integer string
+	 *             representation.
+	 */
+	public static Integer extractInt(Call call, String param, ParameterType type) {
+		return extractInt(call, param, type == ParameterType.MANDATORY);
+	}
+
+	/**
+	 * Extracts the integer value of a service call's parameter, if existent and
+	 * valid.
+	 * 
+	 * @param call
+	 *            The call.
+	 * @param param
+	 *            The parameter name.
 	 * 
 	 * @return The extracted value.
 	 * 
@@ -67,15 +120,63 @@ public final class UosUtil {
 	 *             if the parameter is not present or is not a valid integer or
 	 *             integer string representation.
 	 */
-	public static int extractInt(Call call, String param) {
-		Object value = call.getParameter(param);
-		if (value instanceof Number)
-			return ((Number) value).intValue();
-		if (value instanceof String)
-			return Integer.parseInt((String) value);
+	public static Integer extractInt(Call call, String param) {
+		return extractInt(call, param, true);
+	}
 
-		throw new IllegalArgumentException("invalid value for parameter '"
-				+ param + "'");
+	/**
+	 * Extracts the double value of a service call's parameter, if existent and
+	 * valid.
+	 * 
+	 * @param call
+	 *            The call.
+	 * @param param
+	 *            The parameter name.
+	 * @param required
+	 *            If this parameter is required.
+	 * 
+	 * @return The extracted value.
+	 * 
+	 * @throws IllegalArgumentException
+	 *             if the parameter is required and not present or is not a
+	 *             valid double or double string representation.
+	 */
+	public static Double extractDouble(Call call, String param, boolean required) {
+		Object value = call.getParameter(param);
+		if (value != null) {
+			if (value instanceof Number)
+				return ((Number) value).doubleValue();
+			if (value instanceof String)
+				return Double.parseDouble((String) value);
+
+			throw new IllegalArgumentException("invalid value for parameter '" + param + "'");
+		} else {
+			if (required)
+				throw new IllegalArgumentException("parameter '" + param + "' not provided");
+			return null;
+		}
+	}
+
+	/**
+	 * Extracts the double value of a service call's parameter, if existent and
+	 * valid.
+	 * 
+	 * @param call
+	 *            The call.
+	 * @param param
+	 *            The parameter name.
+	 * @param type
+	 *            The uOS type of this parameter.
+	 * 
+	 * @return The extracted value.
+	 * 
+	 * @throws IllegalArgumentException
+	 *             if the parameter is {@link ParameterType#MANDATORY} and not
+	 *             present or is not a valid double or double string
+	 *             representation.
+	 */
+	public static Double extractDouble(Call call, String param, ParameterType type) {
+		return extractDouble(call, param, type == ParameterType.MANDATORY);
 	}
 
 	/**
@@ -93,14 +194,7 @@ public final class UosUtil {
 	 *             if the parameter is not present or is not a valid double or
 	 *             double string representation.
 	 */
-	public static double extractDouble(Call call, String param) {
-		Object value = call.getParameter(param);
-		if (value instanceof Number)
-			return ((Number) value).doubleValue();
-		if (value instanceof String)
-			return Double.parseDouble((String) value);
-
-		throw new IllegalArgumentException("invalid value for parameter '"
-				+ param + "'");
+	public static Double extractDouble(Call call, String param) {
+		return extractDouble(call, param, true);
 	}
 }
