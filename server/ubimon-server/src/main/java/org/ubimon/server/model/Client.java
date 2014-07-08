@@ -1,8 +1,10 @@
-package org.ubimon.server.persistence;
+package org.ubimon.server.model;
 
 import java.io.Serializable;
 import java.util.Calendar;
 
+import javax.persistence.Column;
+import javax.persistence.Embedded;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
@@ -18,13 +20,16 @@ public class Client implements Serializable {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Integer id; // unique database id
 	private String name; // informed client name
+	@Column(nullable = false)
 	private String deviceName; // caller UpDevice name
+	@Column(nullable = false, length = 2048)
 	private String deviceDesc; // caller UpDevice JSON description
 	@Temporal(TemporalType.TIMESTAMP)
+	@Column(nullable = false)
 	private Calendar lastUpdate; // last time this client was connected
-	private Double latitute; // last informed client's latitute
-	private Double longitude; // last informed client's longitude
-	private Double delta; // last informed client's position accuracy
+	@Embedded
+	@Column(nullable = false)
+	private Position position; // last informed client's position
 	private String metadata; // client metadata string, app dependent
 
 	public Integer getId() {
@@ -40,7 +45,7 @@ public class Client implements Serializable {
 	}
 
 	public void setName(String name) {
-		this.name = name;
+		this.name = name.trim().toLowerCase();
 	}
 
 	public String getDeviceName() {
@@ -48,7 +53,7 @@ public class Client implements Serializable {
 	}
 
 	public void setDeviceName(String deviceName) {
-		this.deviceName = deviceName;
+		this.deviceName = deviceName.trim().toLowerCase();
 	}
 
 	public String getDeviceDesc() {
@@ -67,28 +72,12 @@ public class Client implements Serializable {
 		this.lastUpdate = lastUpdate;
 	}
 
-	public Double getLatitute() {
-		return latitute;
+	public Position getPosition() {
+		return position;
 	}
 
-	public void setLatitute(Double latitute) {
-		this.latitute = latitute;
-	}
-
-	public Double getLongitude() {
-		return longitude;
-	}
-
-	public void setLongitude(Double longitude) {
-		this.longitude = longitude;
-	}
-
-	public Double getDelta() {
-		return delta;
-	}
-
-	public void setDelta(Double delta) {
-		this.delta = delta;
+	public void setPosition(Position position) {
+		this.position = position;
 	}
 
 	public String getMetadata() {
