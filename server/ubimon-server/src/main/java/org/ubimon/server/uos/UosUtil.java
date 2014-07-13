@@ -1,7 +1,12 @@
 package org.ubimon.server.uos;
 
+import java.util.Calendar;
 import java.util.Map;
 
+import org.ubimon.server.model.Client;
+import org.ubimon.server.model.Position;
+import org.unbiquitous.json.JSONException;
+import org.unbiquitous.json.JSONObject;
 import org.unbiquitous.uos.core.messageEngine.dataType.UpDriver;
 import org.unbiquitous.uos.core.messageEngine.dataType.UpService;
 import org.unbiquitous.uos.core.messageEngine.dataType.UpService.ParameterType;
@@ -76,7 +81,8 @@ public final class UosUtil {
 				return Integer.parseInt((String) value);
 
 			throw new IllegalArgumentException("invalid value for parameter '" + param + "'");
-		} else {
+		}
+		else {
 			if (required)
 				throw new IllegalArgumentException("parameter '" + param + "' not provided");
 			return null;
@@ -150,7 +156,8 @@ public final class UosUtil {
 				return Double.parseDouble((String) value);
 
 			throw new IllegalArgumentException("invalid value for parameter '" + param + "'");
-		} else {
+		}
+		else {
 			if (required)
 				throw new IllegalArgumentException("parameter '" + param + "' not provided");
 			return null;
@@ -196,5 +203,29 @@ public final class UosUtil {
 	 */
 	public static Double extractDouble(Call call, String param) {
 		return extractDouble(call, param, true);
+	}
+
+	public static JSONObject serialize(Client c) throws JSONException {
+		Position p = c.getPosition();
+		JSONObject obj = new JSONObject();
+		obj.put("name", c.getName());
+		obj.put("device", new JSONObject(c.getDeviceDesc()));
+		obj.put("latitude", p.getLatitude());
+		obj.put("longitude", p.getLongitude());
+		obj.put("delta", p.getDelta());
+		obj.put("lastUpdate", serialize(c.getLastUpdate()));
+		obj.put("metadata", c.getMetadata());
+		return obj;
+	}
+
+	public static JSONObject serialize(Calendar timestamp) throws JSONException {
+		JSONObject obj = new JSONObject();
+		obj.put("year", timestamp.get(Calendar.YEAR));
+		obj.put("month", timestamp.get(Calendar.MONTH));
+		obj.put("day", timestamp.get(Calendar.DAY_OF_MONTH));
+		obj.put("hour", timestamp.get(Calendar.HOUR_OF_DAY));
+		obj.put("minute", timestamp.get(Calendar.MINUTE));
+		obj.put("second", timestamp.get(Calendar.SECOND));
+		return obj;
 	}
 }

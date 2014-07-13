@@ -10,8 +10,6 @@ import org.ubimon.server.model.Position;
 import org.ubimon.server.persistence.ClientDao;
 import org.ubimon.server.uos.UosUtil;
 import org.unbiquitous.json.JSONArray;
-import org.unbiquitous.json.JSONException;
-import org.unbiquitous.json.JSONObject;
 import org.unbiquitous.uos.core.InitialProperties;
 import org.unbiquitous.uos.core.UOSLogging;
 import org.unbiquitous.uos.core.adaptabitilyEngine.Gateway;
@@ -24,6 +22,7 @@ import org.unbiquitous.uos.core.messageEngine.messages.Call;
 import org.unbiquitous.uos.core.messageEngine.messages.Response;
 
 public class PositionRegistryDriver implements UosDriver {
+	public static final String DRIVER_NAME = "ubimon.PositionRegistryDriver";
 	public static final String TIMEOUT_KEY = "ubimon.positionregistrydriver.timout";
 	public static final int DEFAULT_TIMEOUT = 5 * 60; // five minutes
 
@@ -49,22 +48,25 @@ public class PositionRegistryDriver implements UosDriver {
 			if (temp != null)
 				metadata = temp.toString();
 			UpDevice caller = context.getCallerDevice();
+			String deviceName = (caller == null) ? clientName : caller.getName();
+			String deviceDesc = (caller == null) ? clientName : caller.toJSON().toString();
 
-			List<Client> list = dao.find(clientName, caller.getName());
-			if ((list != null) && (!list.isEmpty()))
-				response.setError("client name or device already registered");
-			else {
-				Client c = new Client();
+			List<Client> list = dao.find(clientName, deviceName);
+			Client c = null;
+			if ((list == null) || list.isEmpty()) {
+				c = new Client();
 				c.setName(clientName);
-				c.setDeviceName(caller.getName());
-				c.setDeviceDesc(caller.toJSON().toString());
+				c.setDeviceName(deviceName);
+				c.setDeviceDesc(deviceDesc);
 				c.setLastUpdate(Calendar.getInstance());
 				c.setPosition(p);
 				c.setMetadata(metadata);
 				dao.insert(c);
-
-				response.addParameter("clientId", c.getId());
 			}
+			else
+				c = list.get(0);
+
+			response.addParameter("clientId", c.getId());
 		}
 		catch (IllegalArgumentException e) {
 			response.setError(e.getMessage());
@@ -93,8 +95,10 @@ public class PositionRegistryDriver implements UosDriver {
 			if (c == null)
 				response.setError("client id not found");
 			else {
-				c.setDeviceName(caller.getName());
-				c.setDeviceDesc(caller.toJSON().toString());
+				if (caller != null) {
+					c.setDeviceName(caller.getName());
+					c.setDeviceDesc(caller.toJSON().toString());
+				}
 				c.setLastUpdate(Calendar.getInstance());
 				c.setPosition(p);
 				if (metadata != null)
@@ -145,20 +149,8 @@ public class PositionRegistryDriver implements UosDriver {
 			List<Client> clients = dao.find(p, range);
 			JSONArray result = new JSONArray();
 			if (clients != null) {
-				for (Client client : clients) {
-					p = client.getPosition();
-
-					JSONObject clientObj = new JSONObject();
-					clientObj.put("name", client.getName());
-					clientObj.put("device", new JSONObject(client.getDeviceDesc()));
-					clientObj.put("latitude", p.getLatitude());
-					clientObj.put("longitude", p.getLongitude());
-					clientObj.put("delta", p.getDelta());
-					clientObj.put("lastUpdate", serializeTimestamp(client.getLastUpdate()));
-					clientObj.put("metadata", client.getMetadata());
-
-					result.put(clientObj);
-				}
+				for (Client client : clients)
+					result.put(UosUtil.serialize(client));
 			}
 			response.addParameter("clients", result);
 		}
@@ -181,18 +173,6 @@ public class PositionRegistryDriver implements UosDriver {
 		p.setLongitude(UosUtil.extractDouble(call, "longitude"));
 		p.setDelta(UosUtil.extractDouble(call, "delta"));
 		return p;
-	}
-
-	private static JSONObject serializeTimestamp(Calendar timestamp)
-			throws JSONException {
-		JSONObject obj = new JSONObject();
-		obj.put("year", timestamp.get(Calendar.YEAR));
-		obj.put("month", timestamp.get(Calendar.MONTH));
-		obj.put("day", timestamp.get(Calendar.DAY_OF_MONTH));
-		obj.put("hour", timestamp.get(Calendar.HOUR_OF_DAY));
-		obj.put("minute", timestamp.get(Calendar.MINUTE));
-		obj.put("second", timestamp.get(Calendar.SECOND));
-		return obj;
 	}
 
 	// UosDriver interface...
@@ -224,7 +204,7 @@ public class PositionRegistryDriver implements UosDriver {
 
 	private static final UpDriver driver;
 	static {
-		UpDriver d = new UpDriver("ubimon.PositionRegistryDriver");
+		UpDriver d = new UpDriver(DRIVER_NAME);
 
 		d.addService("checkIn")
 				.addParameter("clientName", UpService.ParameterType.OPTIONAL)
