@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using UOS.Net;
+using System.Net;
 
 
 namespace UOS
@@ -11,7 +11,7 @@ namespace UOS
         private int passiveIndex = 0;
         private IDictionary<string, TCPServerConnection> startedServers = new Dictionary<string, TCPServerConnection>();
 
-        public TCPChannelManager(IPAddress localIP, int defaultPort, string portRange)
+        public TCPChannelManager(int defaultPort, string portRange)
         {
             this.defaultPort = defaultPort;
 
@@ -32,7 +32,7 @@ namespace UOS
                 lowerPort = upperPort = defaultPort;
             }
 
-            string localHost = localIP.ToString();
+            string localHost = IPAddress.Any.ToString();
             passiveDevices.Add(new SocketDevice(localHost, defaultPort, EthernetConnectionType.TCP));
             for (int i = lowerPort; i <= upperPort; ++i)
                 passiveDevices.Add(new SocketDevice(localHost, i, EthernetConnectionType.TCP));
@@ -79,6 +79,15 @@ namespace UOS
             }
 
             return server.Accept();
+        }
+
+        public List<string> ListHosts()
+        {
+            var ips = Util.GetLocalIPs();
+            var result = new List<string>();
+            foreach (var ip in ips)
+                result.Add(ip.ToString());
+            return result;
         }
 
         public List<NetworkDevice> ListNetworkDevices()

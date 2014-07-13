@@ -71,6 +71,9 @@ namespace UOS
         //ubiquitos.bth
         public uOSBluetoothSettings bth = new uOSBluetoothSettings();
 
+        //ubiquitos.web
+        public uOSWebSocektSettings websocket = new uOSWebSocektSettings();
+
         //ubiquitos.driver.deploylist=org.unbiquitous.uos.core.driver.DeviceDriverImpl;\
         //    org.unbiquitous.uos.core.driver.OntologyDriverImpl;\
         //    org.unbiquitous.uos.core.driver.UserDriver(My_user_driver);
@@ -137,6 +140,19 @@ namespace UOS
 
         //ubiquitos.bth.client=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB
         public string client = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB";
+    }
+
+    //ubiquitos.web.port
+    [System.Serializable]
+    public class uOSWebSocektSettings
+    {
+        public string hostName = "localhost";
+
+        //ubiquitos.websocket.port=8080
+        public int port = 8080;
+
+        //ubiquitos.websocket.timeout=1000
+        public int timeout = 1000;
     }
 
     /// <summary>

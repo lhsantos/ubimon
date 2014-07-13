@@ -36,7 +36,7 @@ public class GlobalPositionDriver : MonoBehaviour, UOSEventDriver
     /// <summary>
     /// Minimun distance to update position, in meters.
     /// </summary>
-    public float updateDistace = 5f;
+    public float updateDistance = 5f;
 
     public enum Status
     {
@@ -54,8 +54,9 @@ public class GlobalPositionDriver : MonoBehaviour, UOSEventDriver
     public static GlobalPositionDriver main { get; private set; }
 
     public Status status { get; private set; }
-    private Vector2 pos;
-    private float delta;
+
+
+    private GlobalPosition pos;
     private double lastTime = 0d;
 
     /// <summary>
@@ -77,8 +78,7 @@ public class GlobalPositionDriver : MonoBehaviour, UOSEventDriver
             if (Time.time > lastTime)
             {
                 lastTime = Time.time + 5f;
-                pos = new Vector2(defaultLatitude, defaultLongitude);
-                delta = defaultDelta;
+                pos = new GlobalPosition(defaultLatitude, defaultLongitude, defaultDelta);
 
                 (new Thread(new ThreadStart(NotifyListeners))).Start();
             }
@@ -89,8 +89,8 @@ public class GlobalPositionDriver : MonoBehaviour, UOSEventDriver
                 if (lastData.timestamp > lastTime)
                 {
                     lastTime = lastData.timestamp;
-                    pos = new Vector2(lastData.latitude, lastData.longitude);
-                    delta = (new Vector2(lastData.horizontalAccuracy, lastData.verticalAccuracy)).magnitude;
+                    float delta = (new Vector2(lastData.horizontalAccuracy, lastData.verticalAccuracy)).magnitude;
+                    pos = new GlobalPosition(lastData.latitude, lastData.longitude, delta);
 
                     (new Thread(new ThreadStart(NotifyListeners))).Start();
                 }
@@ -112,7 +112,7 @@ public class GlobalPositionDriver : MonoBehaviour, UOSEventDriver
             yield break;
         }
 
-        Input.location.Start(desiredAccuracy, updateDistace);
+        Input.location.Start(desiredAccuracy, updateDistance);
         float maxWait = 20;
         while (
             (Input.location.status != LocationServiceStatus.Running) &&
@@ -219,9 +219,9 @@ public class GlobalPositionDriver : MonoBehaviour, UOSEventDriver
     {
         if (status == Status.READY)
         {
-            serviceResponse.AddParameter("latitude", pos.x);
-            serviceResponse.AddParameter("longitude", pos.y);
-            serviceResponse.AddParameter("delta", delta);
+            serviceResponse.AddParameter("latitude", pos.latitude);
+            serviceResponse.AddParameter("longitude", pos.longitude);
+            serviceResponse.AddParameter("delta", pos.delta);
         }
         else
         {
@@ -271,9 +271,9 @@ public class GlobalPositionDriver : MonoBehaviour, UOSEventDriver
     private void NotifyListeners()
     {
         Notify notify = new Notify(EVENT_POS_CHANGE, DRIVER_ID, instanceId);
-        notify.AddParameter("latitude", pos.x);
-        notify.AddParameter("longitude", pos.y);
-        notify.AddParameter("delta", delta);
+        notify.AddParameter("latitude", pos.latitude);
+        notify.AddParameter("longitude", pos.longitude);
+        notify.AddParameter("delta", pos.delta);
 
         foreach (var device in listeners.Values)
             gateway.Notify(notify, device);

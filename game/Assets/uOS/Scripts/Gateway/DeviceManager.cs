@@ -169,6 +169,7 @@ namespace UOS
             }
             catch (System.Exception e)
             {
+                logger.Log(e.StackTrace);
                 logger.LogError("Not possible to handshake with device '" + device.networkDeviceName + "'. " + e.Message);
             }
 
@@ -196,8 +197,6 @@ namespace UOS
                     }
                     catch (System.Exception e)
                     {
-                        UnityEngine.Debug.Log(e);
-                        UnityEngine.Debug.Log(e.StackTrace);
                         logger.LogError(
                             "Problems occurred while registering drivers from device '" + upDevice.name + "' . " + e.Message);
                     }
@@ -207,7 +206,7 @@ namespace UOS
             {
                 logger.LogError(
                     "Not possible to discover services from device '" + device.networkDeviceName +
-                    "'. Possibly not a uOS Device");
+                    "'. Possibly not a uOS Device.");
             }
         }
 

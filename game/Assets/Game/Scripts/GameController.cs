@@ -4,7 +4,7 @@ using UOS;
 
 
 [RequireComponent(typeof(uOS))]
-public class GameController : MonoBehaviour, UOSApplication, UOSEventListener, Logger
+public class GameController : MonoBehaviour, UOSApplication, Logger
 {
     /// <summary>
     /// The singleton instance of this component.
@@ -16,9 +16,6 @@ public class GameController : MonoBehaviour, UOSApplication, UOSEventListener, L
     /// </summary>
     public UnityGateway gateway { get; private set; }
 
-    private double latitude, longitude, delta;
-    private float timer = 0f;
-    private const float timerInterval = 5f;
 
     /// <summary>
     /// Called when this component is created in the scene.
@@ -33,6 +30,8 @@ public class GameController : MonoBehaviour, UOSApplication, UOSEventListener, L
     /// </summary>
     void Start()
     {
+        Screen.sleepTimeout = SleepTimeout.NeverSleep;
+
         uOS.Init(this, this);
     }
 
@@ -46,41 +45,28 @@ public class GameController : MonoBehaviour, UOSApplication, UOSEventListener, L
             Application.Quit();
             return;
         }
-
-        timer -= Time.deltaTime;
-        if (timer < 0f)
-        {
-            ResetTimer();
-
-            Call call = new Call(GlobalPositionDriver.DRIVER_ID, "getPos");
-            Response r = gateway.CallService(gateway.currentDevice, call);
-            if (r == null)
-                gateway.logger.LogError("No response!");
-            else if (!string.IsNullOrEmpty(r.error))
-                gateway.logger.LogError(r.error);
-            else
-                ExtractPos(r);
-        }
     }
 
-    private void ResetTimer()
-    {
-        timer += timerInterval;
-    }
 
-    private string myLog = "";
+
+    private static string myLog = "";
     void OnGUI()
     {
+        return;
+
         int w = Screen.width, h = Screen.height;
         Vector2 border = new Vector2(10, 10);
         Vector2 area = new Vector2(w - 2 * border.x, h - 2 * border.y);
         Rect posRect = new Rect(border.x, border.y, area.x, 0.1f * area.y);
         Rect logRect = new Rect(border.x, border.y + 0.1f * area.y, area.x, 0.9f * area.y);
 
-        //GUI.TextArea(posRect, "Pos: " + latitude + "," + longitude + ": " + delta);
-        //GUI.TextArea(logRect, myLog);
+        var pos = WorldMapController.main.pos;
+        GUI.TextArea(
+            posRect,
+            "Pos: " + pos.latitude + "," + pos.longitude + ": " + pos.delta + "\n"
+            + MiniJSON.Json.Serialize(gateway.currentDevice.ToJSON()));
+        GUI.TextArea(logRect, myLog);
     }
-
 
 
     #region uOS Interfaces
@@ -89,7 +75,9 @@ public class GameController : MonoBehaviour, UOSApplication, UOSEventListener, L
         this.gateway = (UnityGateway)gateway;
 
         this.gateway.Register(
-            this, gateway.currentDevice, GlobalPositionDriver.DRIVER_ID, null, GlobalPositionDriver.EVENT_POS_CHANGE);
+            WorldMapController.main,
+            gateway.currentDevice,
+            GlobalPositionDriver.DRIVER_ID, null, GlobalPositionDriver.EVENT_POS_CHANGE);
     }
 
     void UOSApplication.TearDown()
@@ -97,51 +85,11 @@ public class GameController : MonoBehaviour, UOSApplication, UOSEventListener, L
         this.gateway = null;
     }
 
-    public void HandleEvent(Notify evt)
-    {
-        ResetTimer();
-        ExtractPos(evt);
-    }
-
-    private void ExtractPos(object message)
-    {
-        try
-        {
-            object latitudeobj, longitudeobj, deltaobj;
-            if (message is Response)
-            {
-                Response r = (Response)message;
-                latitudeobj = r.GetResponseData("latitude");
-                longitudeobj = r.GetResponseData("longitude");
-                deltaobj = r.GetResponseData("delta");
-            }
-            else
-            {
-                Notify n = (Notify)message;
-                latitudeobj = n.GetParameter("latitude");
-                longitudeobj = n.GetParameter("longitude");
-                deltaobj = n.GetParameter("delta");
-            }
-
-            latitude = Util.ConvertOrParse<double>(latitudeobj);
-            longitude = Util.ConvertOrParse<double>(longitudeobj);
-            delta = Util.ConvertOrParse<double>(deltaobj);
-
-            Call call = new Call(GoogleMapsDriver.DRIVER_ID, "updatePos", null);
-            call.AddParameter("latitude", latitude);
-            call.AddParameter("longitude", longitude);
-            gateway.CallService(gateway.currentDevice, call);
-            call.service = "render";
-            call.parameters = null;
-            gateway.CallService(gateway.currentDevice, call);
-        }
-        catch (System.Exception e) { gateway.logger.LogException(e); }
-    }
-
-
     public void Log(object message)
     {
-        DoLog(message.ToString());
+        return;
+
+        DoLog("INFO:" + message.ToString());
     }
 
     public void LogError(object message)
@@ -149,9 +97,9 @@ public class GameController : MonoBehaviour, UOSApplication, UOSEventListener, L
         DoLog("ERROR: " + message);
     }
 
-    public void LogException(System.Exception exception)
+    public void LogException(System.Exception e)
     {
-        DoLog("ERROR: " + exception.StackTrace);
+        DoLog("ERROR: " + e.ToString());
     }
 
     public void LogWarning(object message)
@@ -159,7 +107,7 @@ public class GameController : MonoBehaviour, UOSApplication, UOSEventListener, L
         DoLog("WARNING: " + message);
     }
 
-    private void DoLog(string msg)
+    public static void DoLog(string msg)
     {
         Debug.Log(msg);
         myLog = msg + "\n" + myLog;

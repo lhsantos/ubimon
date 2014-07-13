@@ -1,10 +1,11 @@
 ﻿using MiniJSON;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Text;
 using System.Threading;
 using UnityEngine;
-using UOS.Net;
+
 
 namespace UOS
 {
@@ -256,14 +257,13 @@ namespace UOS
         {
             try
             {
+                logger.Log("Call service on " + target.name + ": " + Json.Serialize(serviceCall.ToJSON()));
                 // Encodes and sends call message.
                 string msg = Json.Serialize(serviceCall.ToJSON()) + "\n";
-                Debug.Log(msg);
                 Response r;
                 string responseMsg = SendMessage(msg, target);
                 if (responseMsg != null)
                 {
-                    Debug.Log(responseMsg);
                     r = Response.FromJSON(Json.Deserialize(responseMsg));
                     r.messageContext = messageContext;
                     return r;
@@ -273,6 +273,7 @@ namespace UOS
             }
             catch (System.Exception e)
             {
+                logger.LogError("Error on remote service call: " + e.ToString());
                 CloseStreams(streamData);
                 throw new ServiceCallException(e);
             }
@@ -649,11 +650,9 @@ namespace UOS
 
         private void PrepareChannels()
         {
-            IPAddress myIP = IPAddress.GetLocal();
-
             channelManagers = new Dictionary<string, ChannelManager>();
-            channelManagers["Ethernet:UDP"] = new UDPChannelManager(myIP, settings.eth.udp.port, settings.eth.udp.passivePortRange);
-            channelManagers["Ethernet:TCP"] = new TCPChannelManager(myIP, settings.eth.tcp.port, settings.eth.tcp.passivePortRange);
+            channelManagers["Ethernet:TCP"] = new TCPChannelManager(settings.eth.tcp.port, settings.eth.tcp.passivePortRange);
+            //channelManagers["WebSocket"] = new WebSocketChannelManager(settings.websocket.hostName, settings.websocket.port, settings.websocket.timeout);
         }
 
         private void PrepareDeviceAndDrivers()
@@ -667,21 +666,25 @@ namespace UOS
                     currentDevice.name = name;
             }
             else
-                currentDevice.name = IPAddress.GetLocalHostName();
+                currentDevice.name = Dns.GetHostName();
 
-            if ((currentDevice.name == null) || (currentDevice.name == "localhost"))
-                currentDevice.name = System.Environment.MachineName.ToLower();
+            if ((currentDevice.name == null) || (currentDevice.name.ToLower() == "localhost"))
+                currentDevice.name = SystemInfo.deviceName;
+            if ((currentDevice.name == null) || currentDevice.name.ToLower().Contains("unknown"))
+                currentDevice.name = System.Environment.UserName;
 
             currentDevice.AddProperty("platform", "unity-" + Application.platform.ToString().ToLower());
 
-            List<UpNetworkInterface> networks = new List<UpNetworkInterface>();
+            var networks = new List<UpNetworkInterface>();
             foreach (ChannelManager cm in channelManagers.Values)
             {
-                NetworkDevice nd = cm.GetAvailableNetworkDevice();
-                UpNetworkInterface nInf = new UpNetworkInterface();
-                nInf.netType = nd.networkDeviceType;
-                nInf.networkAddress = Util.GetHost(nd.networkDeviceName);
-                networks.Add(nInf);
+                foreach (var host in cm.ListHosts())
+                {
+                    var nInf = new UpNetworkInterface();
+                    nInf.netType = cm.GetNetworkDeviceType();
+                    nInf.networkAddress = host;
+                    networks.Add(nInf);
+                }
             }
 
             currentDevice.networks = networks;

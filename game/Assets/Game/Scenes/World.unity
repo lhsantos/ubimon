@@ -74,6 +74,49 @@ NavMeshSettings:
     widthInaccuracy: 16.666666
     heightInaccuracy: 10
   m_NavMesh: {fileID: 0}
+--- !u!1 &175244955
+GameObject:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  serializedVersion: 4
+  m_Component:
+  - 4: {fileID: 175244956}
+  - 114: {fileID: 175244957}
+  m_Layer: 0
+  m_Name: Radar
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &175244956
+Transform:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 175244955}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 48}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 378386700}
+  m_RootOrder: 2
+--- !u!114 &175244957
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 175244955}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b21d4805fa66304488d7bbd4ac669680, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  rangeSprite: {fileID: 21300000, guid: af490cf141fa8ad499d230f8461b1464, type: 3}
+  waveSprite: {fileID: 21300000, guid: c079676408797204384e76ce3c72f242, type: 3}
+  waveEmissionTime: 2
+  waveDuration: 2
 --- !u!1 &378386695
 GameObject:
   m_ObjectHideFlags: 0
@@ -88,7 +131,6 @@ GameObject:
   - 81: {fileID: 378386696}
   - 114: {fileID: 378386702}
   - 114: {fileID: 378386701}
-  - 114: {fileID: 378386703}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -161,6 +203,7 @@ Transform:
   m_Children:
   - {fileID: 417979741}
   - {fileID: 1998920777}
+  - {fileID: 175244956}
   m_Father: {fileID: 0}
   m_RootOrder: 0
 --- !u!114 &378386701
@@ -185,22 +228,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 01de5a8ebcf88524295045d85b9545cc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &378386703
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 378386695}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b93d2ce334120dd4a900cf09567ca444, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  defaultLatitude: -15.8315754
-  defaultLongitude: -47.9830132
-  defaultDelta: 100
-  desiredAccuracy: 5
-  updateDistace: 5
 --- !u!1 &417979740
 GameObject:
   m_ObjectHideFlags: 0
@@ -277,8 +304,10 @@ GameObject:
   - 23: {fileID: 1998920774}
   - 114: {fileID: 1998920778}
   - 114: {fileID: 1998920773}
+  - 114: {fileID: 1998920780}
+  - 114: {fileID: 1998920779}
   m_Layer: 0
-  m_Name: Background
+  m_Name: WorldMap
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -343,7 +372,7 @@ Transform:
   m_GameObject: {fileID: 1998920772}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 50}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 10, y: 10, z: 1}
   m_Children: []
   m_Father: {fileID: 378386700}
   m_RootOrder: 1
@@ -358,9 +387,37 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7d5cfd1d5cfab1e4cb28e91796459951, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  minUpdateInterval: 4
-  zoom: 21
+  apiKey: AIzaSyCjZCndoSfrFzpOl-CGHDD1hMZyL8lqUK8
+  minUpdateInterval: 2
+  zoom: 20
   mapType: 1
   mapWidth: 640
   mapHeight: 640
   doubleResolution: 1
+--- !u!114 &1998920779
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1998920772}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f310f1227b18ebf4eab8cde261c7209a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &1998920780
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1998920772}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b93d2ce334120dd4a900cf09567ca444, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  defaultLatitude: -15.8315754
+  defaultLongitude: -47.9830132
+  defaultDelta: 50
+  desiredAccuracy: 5
+  updateDistance: 5

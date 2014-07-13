@@ -24,7 +24,11 @@ MonoBehaviour:
   bth:
     provider: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
     client: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB
-  radarType: 3
+  websocket:
+    hostName: localhost
+    port: 8080
+    timeout: 1000
+  radarType: 0
   drivers:
-  - GoogleMapsDriver
   - GlobalPositionDriver
+  - GoogleMapsDriver

@@ -5,6 +5,56 @@ using UnityEngine;
 using UOS;
 
 
+public class Mercator
+{
+    private const double TILE_SIZE = 256;
+    private const double originX = TILE_SIZE / 2;
+    private const double originY = TILE_SIZE / 2;
+    private const double PX_PER_LNG_DEG = TILE_SIZE / 360;
+    private const double PX_PER_LNG_RAD = TILE_SIZE / (2 * System.Math.PI);
+    private const double DEG2RAD = System.Math.PI / 180;
+    private const double RAD2DEG = 180 / System.Math.PI;
+
+    /// <summary>
+    /// Converts a (latitude, longitude) coordinate to a point in Mercator plane of size {256, 256}.
+    /// </summary>
+    /// <param name="coord"></param>
+    /// <returns></returns>
+    public static Vector2 CoordToPoint(GlobalPosition coord)
+    {
+        double x = 0;
+        double y = 0;
+
+        x = originX + coord.longitude * PX_PER_LNG_DEG;
+
+        // Truncating to 0.9999 effectively limits latitude to 89.189. This is
+        // about a third of a tile past the edge of the world tile.
+        var siny = Clamp(System.Math.Sin(DEG2RAD * coord.latitude), -0.9999, 0.9999);
+        y = originY + 0.5 * System.Math.Log((1 + siny) / (1 - siny)) * -PX_PER_LNG_RAD;
+
+        return new Vector2((float)x, (float)y);
+    }
+
+    /// <summary>
+    /// Converts a point in Mercartor plane of size {256, 256} to a (latitude, longitude) coordinate.
+    /// </summary>
+    /// <param name="point"></param>
+    /// <returns></returns>
+    public static GlobalPosition PointToCoord(Vector2 point)
+    {
+        var lng = (point.x - originX) / PX_PER_LNG_DEG;
+        var latRadians = (point.y - originY) / -PX_PER_LNG_RAD;
+        var lat = RAD2DEG * (2 * System.Math.Atan(System.Math.Exp(latRadians)) - System.Math.PI / 2);
+
+        return new GlobalPosition(lat, lng);
+    }
+
+    private static double Clamp(double v, double min, double max)
+    {
+        return System.Math.Min(max, System.Math.Max(min, v));
+    }
+}
+
 public class GoogleMapsDriver : MonoBehaviour, UOSDriver
 {
     public const string DRIVER_ID = "ubimon.GoogleMapsDriver";
@@ -20,8 +70,9 @@ public class GoogleMapsDriver : MonoBehaviour, UOSDriver
         Hybrid
     }
 
-    public float minUpdateInterval = 4f;
-    public int zoom = 13;
+    public string apiKey = "";
+    public float minUpdateInterval = 2f;
+    public int zoom = 20;
     public MapType mapType;
     public int mapWidth = MAX_MAP_WIDTH;
     public int mapHeight = MAX_MAP_HEIGHT;
@@ -36,10 +87,11 @@ public class GoogleMapsDriver : MonoBehaviour, UOSDriver
     /// <summary>
     /// In which position is this user right now?
     /// </summary>
-    public Vector2 position { get { return pos; } }
+    public GlobalPosition pos { get; private set; }
+
+    public float metersPerPixel { get; private set; }
 
 
-    private Vector2 pos = Vector2.zero;
     private WWW req = null;
     private bool updateTexture = false;
     private float lastUpdate = 0f;
@@ -86,7 +138,7 @@ public class GoogleMapsDriver : MonoBehaviour, UOSDriver
             url.Append("?");
 
             url.Append("center=");
-            url.Append(WWW.UnEscapeURL(string.Format("{0},{1}", pos.x, pos.y)));
+            url.Append(WWW.UnEscapeURL(string.Format("{0:F6},{1:F6}", pos.latitude, pos.longitude)));
 
             url.Append("&zoom=");
             url.Append(zoom.ToString());
@@ -106,6 +158,13 @@ public class GoogleMapsDriver : MonoBehaviour, UOSDriver
 #endif
             url.Append("&sensor=");
             url.Append(usingSensor ? "true" : "false");
+
+            string key = apiKey ?? apiKey.Trim();
+            if (key.Length > 0)
+            {
+                url.Append("&key=");
+                url.Append(key);
+            }
 
             req = new WWW(url.ToString());
             updateTexture = false;
@@ -184,37 +243,38 @@ public class GoogleMapsDriver : MonoBehaviour, UOSDriver
         try
         {
             // Were the parameters sent correctly and are they valid?
-            object xobj, yobj;
-            double x, y;
+            object latObj, lngObj;
+            double lat, lng;
 
-            xobj = serviceCall.GetParameter("latitude");
-            if (xobj == null)
+            latObj = serviceCall.GetParameter("latitude");
+            if (latObj == null)
             {
                 serviceResponse.error = "No 'latitude' parameter informed.";
                 return;
             }
-            if (xobj is double) x = (double)xobj;
-            else if (!double.TryParse(xobj.ToString(), out x))
+            if (latObj is double) lat = (double)latObj;
+            else if (!double.TryParse(latObj.ToString(), out lat))
             {
                 serviceResponse.error = "'latitute' parameter is not a valid float value";
                 return;
             }
 
-            yobj = serviceCall.GetParameter("longitude");
-            if (xobj == null)
+            lngObj = serviceCall.GetParameter("longitude");
+            if (lngObj == null)
             {
                 serviceResponse.error = "No 'longitude' parameter informed.";
                 return;
             }
-            if (yobj is double) y = (double)yobj;
-            else if (!double.TryParse(yobj.ToString(), out y))
+            if (lngObj is double) lng = (double)lngObj;
+            else if (!double.TryParse(lngObj.ToString(), out lng))
             {
                 serviceResponse.error = "'longitude' parameter is not a valid float value";
                 return;
             }
 
             // Updates internal state.
-            this.pos = new Vector2((float)x, (float)y);
+            this.pos = new GlobalPosition(lat, lng);
+            UpdateMetersPerPixel();
         }
         catch (System.Exception e) { serviceResponse.error = e.Message; }
     }
@@ -225,4 +285,30 @@ public class GoogleMapsDriver : MonoBehaviour, UOSDriver
         updateTexture = true;
     }
     #endregion
+
+    private void UpdateMetersPerPixel()
+    {
+        const float refD = 1000.0f; // one kilometer
+
+        double earthRadius = WGS84EarthRadius(pos.latitude);
+        int numTiles = (1 << zoom);
+        var pxPos = numTiles * Mercator.CoordToPoint(pos);
+        var refPos = new GlobalPosition(pos.latitude, pos.longitude + Mathf.Rad2Deg * refD / earthRadius);
+        var pxRef = numTiles * Mercator.CoordToPoint(refPos);
+
+        metersPerPixel = refD / Mathf.Abs(pxPos.x - pxRef.x);
+    }
+
+    private static double WGS84EarthRadius(double lat)
+    {
+        const double WGS84_a = 6378137.0; // Major semiaxis.
+        const double WGS84_b = 6356752.3; // Minor semiaxis.
+
+        var An = WGS84_a * WGS84_a * System.Math.Cos(lat);
+        var Bn = WGS84_b * WGS84_b * System.Math.Sin(lat);
+        var Ad = WGS84_a * System.Math.Cos(lat);
+        var Bd = WGS84_b * System.Math.Sin(lat);
+
+        return System.Math.Sqrt((An * An + Bn * Bn) / (Ad * Ad + Bd * Bd));
+    }
 }
