@@ -1,5 +1,7 @@
 package org.ubimon.server;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.Level;
 
 import org.ubimon.server.model.Position;
@@ -18,8 +20,6 @@ import org.unbiquitous.uos.core.ontologyEngine.api.OntologyUndeploy;
 import org.unbiquitous.uos.network.socket.radar.MulticastRadar;
 
 public class UbimonServer implements UosApplication {
-	private static final String CONFIG_BUNDLE_FILE = "ubimon-server";
-
 	/**
 	 * Entry point for this server.
 	 * 
@@ -27,36 +27,50 @@ public class UbimonServer implements UosApplication {
 	 * @throws Throwable
 	 */
 	public static void main(String[] args) throws Throwable {
-		// InitialProperties props = new
-		// InitialProperties(ResourceBundle.getBundle(CONFIG_BUNDLE_FILE));
+		// Processes command line arguments.
+		Set<String> argsMap = new HashSet<String>();
+		for (String arg : args)
+			argsMap.add(arg);
+		boolean createStation = argsMap.contains("--station");
+
+		// Prepares and starts middleware.
+		UOSLogging.getLogger().setLevel(Level.ALL);
+
 		InitialProperties props = new MulticastRadar.Properties();
+		props.put("ubiquitos.eth.tcp.ignoreFilter", "10.*");
 		props.setDeviceName("ubimon-server");
 		props.addDriver(PositionRegistryDriver.class);
 		props.addApplication(UbimonServer.class);
 
 		UOS uos = new UOS();
-		UOSLogging.getLogger().setLevel(Level.SEVERE);
 		uos.start(props);
+		System.out.println(uos.getGateway().getCurrentDevice().toJSON().toString());
 
-		(new KeepPositionThread(uos)).start();
+		(new KeepPositionThread(uos, createStation ? "ubimon,station" : null)).start();
 	}
 
 	private static class KeepPositionThread extends Thread {
 		private UOS uos;
-		private Position myPos = null;
+		private Position myPos;
+		private String metadata;
 		private Integer posRegId;
 
-		public KeepPositionThread(UOS uos) {
+		public KeepPositionThread(UOS uos, String metadata) {
 			this.uos = uos;
-			this.myPos = new Position(-15.758749, -47.868772, 10);
+
+			// this.myPos = new Position(-15.804627, -47.868599, 10); //CNMP
+			this.myPos = new Position(-15.7625538, -47.8910071, 10); // Balance
+			// this.myPos = new Position(-15.7625538,-47.8910071, 10); //CIC
+
+			this.metadata = metadata;
 		}
 
 		@Override
 		public void run() {
 			try {
-				System.out.println(uos.getGateway().getCurrentDevice().toJSON().toString());
 				checkIn();
 				while (true) {
+					// Sleeps for one minute.
 					Thread.sleep(60 * 1000);
 					updatePos();
 				}
@@ -72,7 +86,8 @@ public class UbimonServer implements UosApplication {
 			call.addParameter("latitude", myPos.getLatitude());
 			call.addParameter("longitude", myPos.getLongitude());
 			call.addParameter("delta", myPos.getDelta());
-			call.addParameter("metadata", "ubimon,station");
+			if (metadata != null)
+				call.addParameter("metadata", metadata);
 
 			Gateway gateway = uos.getGateway();
 			Response r = gateway.callService(gateway.getCurrentDevice(), call);
@@ -92,18 +107,26 @@ public class UbimonServer implements UosApplication {
 	}
 
 	@Override
-	public void init(OntologyDeploy knowledgeBase, InitialProperties props, String appId) {
+	public void init(OntologyDeploy knowledgeBase, InitialProperties properties, String appId) {
+		// TODO Auto-generated method stub
+
 	}
 
 	@Override
 	public void start(Gateway gateway, OntologyStart ontology) {
+		// TODO Auto-generated method stub
+
 	}
 
 	@Override
 	public void stop() throws Exception {
+		// TODO Auto-generated method stub
+
 	}
 
 	@Override
 	public void tearDown(OntologyUndeploy ontology) throws Exception {
+		// TODO Auto-generated method stub
+
 	}
 }

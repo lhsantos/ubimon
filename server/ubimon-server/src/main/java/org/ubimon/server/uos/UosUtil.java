@@ -208,8 +208,16 @@ public final class UosUtil {
 	public static JSONObject serialize(Client c) throws JSONException {
 		Position p = c.getPosition();
 		JSONObject obj = new JSONObject();
+		obj.put("id", c.getId());
 		obj.put("name", c.getName());
-		obj.put("device", new JSONObject(c.getDeviceDesc()));
+		String deviceDesc = c.getDeviceDesc();
+		if (deviceDesc != null) {
+			deviceDesc = deviceDesc.trim();
+			if (deviceDesc.charAt(0) == '{')
+				obj.put("device", new JSONObject(c.getDeviceDesc()));
+			else
+				obj.put("device", deviceDesc);
+		}
 		obj.put("latitude", p.getLatitude());
 		obj.put("longitude", p.getLongitude());
 		obj.put("delta", p.getDelta());
