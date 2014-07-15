@@ -1,32 +1,57 @@
 ﻿using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 using UOS;
+
+
+public struct WorldEntity
+{
+    public enum Type
+    {
+        Player,
+        Station,
+        GatheringPoint
+    }
+
+    public int id;
+    public string name;
+    public string deviceDesc;
+    public GlobalPosition pos;
+    public Type type;
+
+    public override string ToString()
+    {
+        return id.ToString() + "," + name + "," + deviceDesc + "," + pos.ToString() + "," + type.ToString();
+    }
+}
 
 
 [RequireComponent(typeof(GlobalPositionDriver))]
 public class WorldMapController : MonoBehaviour, UOSEventListener
 {
+    public float neighbourSearchRange = 100f;
+
+
     public static WorldMapController main { get; private set; }
 
     public GlobalPosition pos { get; private set; }
 
+    public List<WorldEntity> neighbours { get; private set; }
+
+
     private float timer = 0f;
     private const float timerInterval = 5f;
+    private object _timer_lock = new object();
+    private Queue<Notify> eventQueue = new Queue<Notify>();
+    private object _event_queue_lock = new object();
+    private bool running;
 
     private UpDevice webHost = null;
     private const string POSITION_REG_DRIVER = "ubimon.PositionRegistryDriver";
+    private string clientName = "client";
     private int? myPosRegId = null;
 
-    private static UnityGateway _gateway = null;
-    private static UnityGateway gateway
-    {
-        get
-        {
-            if (_gateway == null)
-                _gateway = (UnityGateway)uOS.gateway;
-            return _gateway;
-        }
-    }
+    private UnityGateway gateway = null;
 
 
     /// <summary>
@@ -35,6 +60,31 @@ public class WorldMapController : MonoBehaviour, UOSEventListener
     void Awake()
     {
         main = this;
+
+        //neighbours = new List<WorldEntity>();
+        //WorldEntity e = new WorldEntity();
+        //e.id = 14;
+        //e.deviceDesc = "desc";
+        //e.name = "laico";
+        //e.type = WorldEntity.Type.Station;
+        //e.pos = new GlobalPosition(-15.83161f, -47.98301f, 10);
+        //neighbours.Add(e);
+    }
+
+    /// <summary>
+    /// Called when this component is enabled.
+    /// </summary>
+    void OnEnable()
+    {
+        running = true;
+    }
+
+    /// <summary>
+    /// Called when this component is disabled.
+    /// </summary>
+    void OnDisable()
+    {
+        running = false;
     }
 
     /// <summary>
@@ -42,38 +92,81 @@ public class WorldMapController : MonoBehaviour, UOSEventListener
     /// </summary>
     void Update()
     {
-        timer -= Time.deltaTime;
-        if (timer < 0f)
-        {
-            ResetTimer();
-            RequestGlobalPosition();
-        }
+        lock (_timer_lock) { timer -= Time.deltaTime; }
     }
 
+    public Vector2 PixelPosition(GlobalPosition pos)
+    {
+        return (1 << GoogleMapsDriver.main.zoom) * Mercator.CoordToPoint(pos);
+    }
+
+
     #region uOS Interfaces
+    /// <summary>
+    /// Called by GameController when the middleware is initiated.
+    /// </summary>
+    /// <param name="gateway"></param>
+    /// <param name="settings"></param>
+    public void Init(IGateway gateway, uOSSettings settings)
+    {
+        this.gateway = (UnityGateway)gateway;
+        this.clientName = SystemInfo.deviceUniqueIdentifier;
+        (new Thread(PositionUpdateThread)).Start();
+    }
+
     /// <summary>
     /// Position updated event.
     /// </summary>
     /// <param name="evt"></param>
     void UOSEventListener.HandleEvent(Notify evt)
     {
-        ResetTimer();
-        ExtractPositionData(evt);
+        Enqueue(evt);
     }
     #endregion
 
 
-    private void ResetTimer()
+    private void PositionUpdateThread()
     {
-        timer += timerInterval;
+        Notify evt;
+
+        // Runs.
+        while (running)
+        {
+            // Handles events...
+            while ((evt = Dequeue()) != null)
+                ExtractPositionData(evt);
+
+            // Are we waiting for too long?
+            if (timer < 0f)
+                RequestGlobalPosition();
+        }
     }
 
-    private void RegisterPosition()
+    private void Enqueue(Notify n)
+    {
+        lock (_event_queue_lock) { eventQueue.Enqueue(n); }
+    }
+
+    private Notify Dequeue()
+    {
+        lock (_event_queue_lock)
+        {
+            if (eventQueue.Count > 0)
+                return eventQueue.Dequeue();
+            return null;
+        }
+    }
+
+    private void ResetTimer()
+    {
+        lock (_timer_lock) { timer = timerInterval; }
+    }
+
+    private void UpdatePositionRegistry()
     {
         if (myPosRegId != null)
         {
             Call call = new Call(POSITION_REG_DRIVER, "update");
-            call.channels = 0;
             call.AddParameter("clientId", myPosRegId)
                 .AddParameter("latitude", pos.latitude)
                 .AddParameter("longitude", pos.longitude)
@@ -84,6 +177,8 @@ public class WorldMapController : MonoBehaviour, UOSEventListener
                 gateway.logger.LogError("No responce to update pos.");
             else if (!string.IsNullOrEmpty(r.error))
                 gateway.logger.LogError("Update pos error: " + r.error + ".");
+            else
+                UpdateNeighbours();
         }
         else
             CheckIn();
@@ -97,8 +192,7 @@ public class WorldMapController : MonoBehaviour, UOSEventListener
         if (webHost != null)
         {
             Call call = new Call(POSITION_REG_DRIVER, "checkIn");
-            call.channels = 0;
-            call.AddParameter("clientName", SystemInfo.deviceUniqueIdentifier)
+            call.AddParameter("clientName", clientName)
                 .AddParameter("latitude", pos.latitude)
                 .AddParameter("longitude", pos.longitude)
                 .AddParameter("delta", pos.delta)
@@ -106,12 +200,64 @@ public class WorldMapController : MonoBehaviour, UOSEventListener
 
             Response r = gateway.CallService(webHost, call);
             if ((r != null) && string.IsNullOrEmpty(r.error))
-            {
                 myPosRegId = int.Parse(r.GetResponseData("clientId").ToString());
-                Debug.Log(myPosRegId);
+            else
+                gateway.logger.LogError(r == null ? "No response for check-in." : "Error on check-in: " + r.error);
+        }
+    }
+
+    private void UpdateNeighbours()
+    {
+        Call call = new Call(POSITION_REG_DRIVER, "listNeighbours");
+        call.AddParameter("latitude", pos.latitude)
+            .AddParameter("longitude", pos.longitude)
+            .AddParameter("delta", pos.delta)
+            .AddParameter("range", neighbourSearchRange);
+
+        Response r = gateway.CallService(webHost, call);
+        if ((r != null) && string.IsNullOrEmpty(r.error))
+        {
+            try
+            {
+                var list = new List<WorldEntity>();
+                var clients = (IList<object>)r.GetResponseData("clients");
+                foreach (var client in clients)
+                {
+                    var data = (IDictionary<string, object>)client;
+                    int id = UOS.Util.ConvertOrParse<int>(data["id"]);
+                    string meta = "";
+                    object metaObj;
+                    if (data.TryGetValue("metadata", out metaObj))
+                        meta = metaObj.ToString().Trim().ToLower();
+
+                    if ((id != (int)myPosRegId) && meta.Contains("ubimon"))
+                    {
+                        WorldEntity e = new WorldEntity();
+                        e.id = id;
+                        e.name = data["name"] as string;
+                        e.pos = GlobalPosition.FromJSON(data);
+
+                        object deviceDesc = data["device"];
+                        e.deviceDesc = (deviceDesc is string) ? (string)deviceDesc : MiniJSON.Json.Serialize(deviceDesc);
+
+                        e.type = WorldEntity.Type.Player;
+                        if (meta.Contains("station"))
+                            e.type = WorldEntity.Type.Station;
+                        else if (meta.Contains("gathering"))
+                            e.type = WorldEntity.Type.GatheringPoint;
+
+                        list.Add(e);
+                    }
+                }
+                neighbours = list;
+            }
+            catch (System.Exception e)
+            {
+                ((UnityGateway)uOS.gateway).logger.Log(e.ToString());
             }
         }
     }
+
 
     private void RequestGlobalPosition()
     {
@@ -146,12 +292,13 @@ public class WorldMapController : MonoBehaviour, UOSEventListener
                 deltaobj = n.GetParameter("delta");
             }
 
-            newPos.latitude = Util.ConvertOrParse<double>(latitudeobj);
-            newPos.longitude = Util.ConvertOrParse<double>(longitudeobj);
-            newPos.delta = Util.ConvertOrParse<double>(deltaobj);
+            newPos.latitude = UOS.Util.ConvertOrParse<double>(latitudeobj);
+            newPos.longitude = UOS.Util.ConvertOrParse<double>(longitudeobj);
+            newPos.delta = UOS.Util.ConvertOrParse<double>(deltaobj);
             pos = newPos;
 
-            RegisterPosition();
+            ResetTimer();
+            UpdatePositionRegistry();
             UpdateMap();
         }
         catch (System.Exception e) { gateway.logger.LogException(e); }

@@ -119,10 +119,11 @@ public class GoogleMapsDriver : MonoBehaviour, UOSDriver
                 {
                     var tex = new Texture2D(mapWidth, mapHeight);
                     tex.LoadImage(req.bytes);
+                    renderer.material.color = Color.white;
                     renderer.material.mainTexture = tex;
                 }
                 else
-                    Debug.Log(req.error);
+                    ((UnityGateway)uOS.gateway).logger.Log(req.error);
 
                 req = null;
             }
@@ -179,8 +180,6 @@ public class GoogleMapsDriver : MonoBehaviour, UOSDriver
         req = null;
         updateTexture = false;
     }
-
-
 
     #region UOSDriver Interface
     private static UpDriver _driver = null;

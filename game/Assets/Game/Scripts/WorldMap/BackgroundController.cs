@@ -19,6 +19,7 @@ public class BackgroundController : MonoBehaviour
     /// </summary>
     void LateUpdate()
     {
+        Camera.main.orthographicSize = Screen.height / 2;
         int size = Mathf.Max(Screen.width, Screen.height);
 
         // Updates game object size.

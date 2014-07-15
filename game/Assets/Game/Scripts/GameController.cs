@@ -6,6 +6,8 @@ using UOS;
 [RequireComponent(typeof(uOS))]
 public class GameController : MonoBehaviour, UOSApplication, Logger
 {
+    public static readonly Vector2 refResolution = new Vector2(1366, 768);
+
     /// <summary>
     /// The singleton instance of this component.
     /// </summary>
@@ -31,7 +33,6 @@ public class GameController : MonoBehaviour, UOSApplication, Logger
     void Start()
     {
         Screen.sleepTimeout = SleepTimeout.NeverSleep;
-
         uOS.Init(this, this);
     }
 
@@ -49,23 +50,35 @@ public class GameController : MonoBehaviour, UOSApplication, Logger
 
 
 
-    private static string myLog = "";
+    private static System.Text.StringBuilder myLog = new System.Text.StringBuilder();
     void OnGUI()
     {
-        return;
-
         int w = Screen.width, h = Screen.height;
         Vector2 border = new Vector2(10, 10);
         Vector2 area = new Vector2(w - 2 * border.x, h - 2 * border.y);
-        Rect posRect = new Rect(border.x, border.y, area.x, 0.1f * area.y);
-        Rect logRect = new Rect(border.x, border.y + 0.1f * area.y, area.x, 0.9f * area.y);
+        Rect posRect = new Rect(border.x, border.y, area.x, 0.5f * area.y);
+        Rect logRect = new Rect(border.x, border.y + 0.51f * area.y, area.x, 0.5f * area.y);
+
+        var builder = new System.Text.StringBuilder();
+        builder.AppendLine("Known devices:");
+        foreach (var d in uOS.gateway.ListDevices())
+        {
+            builder.AppendLine(MiniJSON.Json.Serialize(d.ToJSON()));
+        }
+        builder.AppendLine();
+
+        builder.AppendLine("Known neighbours:");
+        foreach (var neighbour in (WorldMapController.main.neighbours ?? new List<WorldEntity>()))
+        {
+            builder.AppendLine(neighbour.ToString());
+        }
 
         var pos = WorldMapController.main.pos;
-        GUI.TextArea(
+        GUI.Label(
             posRect,
             "Pos: " + pos.latitude + "," + pos.longitude + ": " + pos.delta + "\n"
-            + MiniJSON.Json.Serialize(gateway.currentDevice.ToJSON()));
-        GUI.TextArea(logRect, myLog);
+            + builder.ToString());
+        GUI.Label(logRect, myLog.ToString());
     }
 
 
@@ -78,6 +91,8 @@ public class GameController : MonoBehaviour, UOSApplication, Logger
             WorldMapController.main,
             gateway.currentDevice,
             GlobalPositionDriver.DRIVER_ID, null, GlobalPositionDriver.EVENT_POS_CHANGE);
+
+        WorldMapController.main.Init(gateway, settings);
     }
 
     void UOSApplication.TearDown()
@@ -87,8 +102,6 @@ public class GameController : MonoBehaviour, UOSApplication, Logger
 
     public void Log(object message)
     {
-        return;
-
         DoLog("INFO:" + message.ToString());
     }
 
@@ -109,8 +122,11 @@ public class GameController : MonoBehaviour, UOSApplication, Logger
 
     public static void DoLog(string msg)
     {
+
         Debug.Log(msg);
-        myLog = msg + "\n" + myLog;
+        myLog.Insert(0, msg + "\n");
+        if (myLog.Length > 2048)
+            myLog.Length = 2048;
     }
     #endregion
 }

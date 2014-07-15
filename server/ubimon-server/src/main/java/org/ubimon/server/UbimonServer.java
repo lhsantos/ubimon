@@ -37,14 +37,12 @@ public class UbimonServer implements UosApplication {
 		UOSLogging.getLogger().setLevel(Level.ALL);
 
 		InitialProperties props = new MulticastRadar.Properties();
-		props.put("ubiquitos.eth.tcp.ignoreFilter", "10.*");
 		props.setDeviceName("ubimon-server");
 		props.addDriver(PositionRegistryDriver.class);
 		props.addApplication(UbimonServer.class);
 
 		UOS uos = new UOS();
 		uos.start(props);
-		System.out.println(uos.getGateway().getCurrentDevice().toJSON().toString());
 
 		(new KeepPositionThread(uos, createStation ? "ubimon,station" : null)).start();
 	}
@@ -58,9 +56,7 @@ public class UbimonServer implements UosApplication {
 		public KeepPositionThread(UOS uos, String metadata) {
 			this.uos = uos;
 
-			// this.myPos = new Position(-15.804627, -47.868599, 10); //CNMP
-			this.myPos = new Position(-15.7625538, -47.8910071, 10); // Balance
-			// this.myPos = new Position(-15.7625538,-47.8910071, 10); //CIC
+			this.myPos = new Position(-15.804479, -47.868465, 50); // CNMP
 
 			this.metadata = metadata;
 		}
@@ -86,8 +82,10 @@ public class UbimonServer implements UosApplication {
 			call.addParameter("latitude", myPos.getLatitude());
 			call.addParameter("longitude", myPos.getLongitude());
 			call.addParameter("delta", myPos.getDelta());
-			if (metadata != null)
+			if (metadata != null) {
+				System.out.println("included metadata");
 				call.addParameter("metadata", metadata);
+			}
 
 			Gateway gateway = uos.getGateway();
 			Response r = gateway.callService(gateway.getCurrentDevice(), call);
@@ -108,25 +106,21 @@ public class UbimonServer implements UosApplication {
 
 	@Override
 	public void init(OntologyDeploy knowledgeBase, InitialProperties properties, String appId) {
-		// TODO Auto-generated method stub
-
 	}
 
 	@Override
 	public void start(Gateway gateway, OntologyStart ontology) {
-		// TODO Auto-generated method stub
-
+		try {
+		System.out.println(gateway.getCurrentDevice().toJSON().toString());
+		}
+		catch (Throwable t){}
 	}
 
 	@Override
 	public void stop() throws Exception {
-		// TODO Auto-generated method stub
-
 	}
 
 	@Override
 	public void tearDown(OntologyUndeploy ontology) throws Exception {
-		// TODO Auto-generated method stub
-
 	}
 }
