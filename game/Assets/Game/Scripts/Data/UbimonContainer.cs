@@ -88,7 +88,7 @@ public class UbimonContainer
         }
     }
 
-    public List<UbimonIcon> Fit(List<Ubimon> list, Ubimon toAdd)
+    public List<UbimonIcon> Fit(List<Ubimon> list, Ubimon toAdd = null)
     {
         List<UbimonIcon> result = SortedIcons(list, toAdd);
 

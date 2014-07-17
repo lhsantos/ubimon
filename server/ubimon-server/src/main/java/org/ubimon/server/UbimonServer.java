@@ -85,8 +85,8 @@ public class UbimonServer implements UosApplication {
 		private Integer posRegId;
 
 		public KeepPositionThread(String metadata) {
-			// this.myPos = new Position(-15.804479, -47.868465, 50); // CNMP
-			this.myPos = new Position(-15.833204, -47.981353, 50); // Casa
+			this.myPos = new Position(-15.804479, -47.868465, 50); // CNMP
+			//this.myPos = new Position(-15.833204, -47.981353, 50); // Casa
 			this.metadata = metadata;
 		}
 

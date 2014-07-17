@@ -6,6 +6,13 @@ using UOS;
 [RequireComponent(typeof(uOS))]
 public class GameController : MonoBehaviour, UOSApplication, Logger
 {
+    private const int TURN_MINE = 0;
+    private const int TURN_ENEMY = 1;
+    private const int TURN_PICK = -1;
+    private const int TURN_CAPTURED = -2;
+    private const int TURN_EXIT = -3;
+
+
     private enum Mode
     {
         World,
@@ -35,7 +42,7 @@ public class GameController : MonoBehaviour, UOSApplication, Logger
     private List<Ubimon> ubimons = new List<Ubimon>();
     private UbimonContainer ubimonContainer;
     private float battleTimer;
-    private float battleCheckInterval = 5f;
+    private float battleCheckInterval = 7f;
     private GameObject battleBG;
 
 
@@ -55,8 +62,10 @@ public class GameController : MonoBehaviour, UOSApplication, Logger
         battleBG = transform.FindChild("BattleBG").gameObject;
         battleBG.renderer.enabled = false;
 
-        ubimons = new List<Ubimon>() { RandomEnemy(), RandomEnemy(), RandomEnemy() };
-        ubimonContainer.icons = ubimonContainer.Fit(ubimons, null);
+        ubimons = new List<Ubimon>() { RandomEnemy() };
+        ubimonContainer.icons = ubimonContainer.Fit(ubimons);
+
+        battleTimer = battleCheckInterval;
     }
 
     /// <summary>
@@ -79,15 +88,15 @@ public class GameController : MonoBehaviour, UOSApplication, Logger
             return;
         }
 
-        if (mode == Mode.World)
+        if ((mode == Mode.World) && GoogleMapsDriver.main.valid && (ubimons.Count > 0))
         {
-            //battleTimer -= Time.deltaTime;
-            //if (battleTimer <= 0)
-            //{
-            //    battleTimer = battleCheckInterval;
-            //    if (Random.Range(0, 1000) > 700)
-            //        StartBattle();
-            //}
+            battleTimer -= Time.deltaTime;
+            if (battleTimer <= 0)
+            {
+                battleTimer = battleCheckInterval;
+                if (Random.Range(0, 1000) > 700)
+                    StartBattle();
+            }
         }
     }
 
@@ -96,15 +105,17 @@ public class GameController : MonoBehaviour, UOSApplication, Logger
     private int turn;
     private int nextTurn;
     private string battleMessage;
+    private string ubimonNickname;
     private void StartBattle()
     {
         mode = Mode.Battle;
         WorldMapController.main.HideMap();
         enemy = RandomEnemy();
         PrepareBattleBG();
-        turn = -1;
+        turn = TURN_PICK;
         nextTurn = 0;
         battleMessage = null;
+        ubimonNickname = "";
     }
 
     private void PrepareBattleBG()
@@ -127,9 +138,10 @@ public class GameController : MonoBehaviour, UOSApplication, Logger
             );
     }
 
-    private void DestroyBattleBG()
+    private void ReleaseBattleBG()
     {
         Destroy(transform.FindChild("enemy").gameObject);
+        battleBG.renderer.enabled = false;
     }
 
     private Ubimon RandomEnemy()
@@ -173,6 +185,12 @@ public class GameController : MonoBehaviour, UOSApplication, Logger
                 break;
         }
         GUI.skin = null;
+
+        GlobalPosition p = WorldMapController.main.pos;
+        string stats =
+            string.Format("[{0:f6},{1:f6}]\u00B1{2:f6}", p.latitude, p.longitude, p.delta)
+            + "\n" + MiniJSON.Json.Serialize(gateway.currentDevice.ToJSON());
+        GUILayout.Label(stats);
     }
 
     private void WorldGUI(Vector2 center, float btnWidth, float btnHeight)
@@ -201,10 +219,6 @@ public class GameController : MonoBehaviour, UOSApplication, Logger
                 ++i;
             }
         }
-
-        Rect r = new Rect(20, center.y + 6.5f * btnHeight, btnWidth, btnHeight);
-        if (GUI.Button(r, "BATTLE"))
-            StartBattle();
     }
 
     private void Interact(WorldEntity e)
@@ -406,7 +420,7 @@ public class GameController : MonoBehaviour, UOSApplication, Logger
             if ((r != null) && string.IsNullOrEmpty(r.GetResponseString("error")))
             {
                 ubimons.RemoveAll(u => u.id.Equals(ubimonContainer.selected.id));
-                ubimonContainer.icons = ubimonContainer.Fit(ubimons, null);
+                ubimonContainer.icons = ubimonContainer.Fit(ubimons);
             }
             else
                 stationError = (r == null) ? "No response!" : r.GetResponseString("error");
@@ -447,20 +461,59 @@ public class GameController : MonoBehaviour, UOSApplication, Logger
         {
             if (GUI.Button(msgRect, battleMessage))
             {
+                if ((turn != TURN_PICK) || battleMessage.Contains("selected"))
+                    turn = nextTurn;
                 battleMessage = null;
-                turn = nextTurn;
-                nextTurn = 1 - turn;
 
-                if (turn == 1)
-                    EnemyAI();
+                if (turn >= 0)
+                {
+                    nextTurn = 1 - turn;
+                    if (turn == TURN_ENEMY)
+                        EnemyAI();
+                }
+                // Go back to world mode!
+                else if (turn == TURN_EXIT)
+                {
+                    ReleaseBattleBG();
+                    WorldMapController.main.ShowMap();
+                    mode = Mode.World;
+
+                    foreach (var u in ubimons)
+                        u.life = u.maxLife;
+                    ubimonContainer.icons = ubimonContainer.Fit(ubimons);
+                }
             }
         }
         else
         {
-            // Is it in picking mode?
             switch (turn)
             {
-                case -1:
+                // Did I get a ubimon?
+                case TURN_CAPTURED:
+                    GUI.Label(labelRect, "Do you want to give a nickname to your new ubimon?");
+
+                    float w = 0.3f * Screen.width;
+                    float h = 30;
+                    r = new Rect(center.x - w / 2, center.y - h / 2, w, h);
+                    ubimonNickname = (GUI.TextField(r, ubimonNickname) ?? "").Trim();
+
+                    GUI.enabled = !string.IsNullOrEmpty(ubimonNickname);
+                    r = new Rect(center.x - btnWidth - 10, center.y + 2 * btnHeight, btnWidth, btnHeight);
+                    if (GUI.Button(r, "OK"))
+                    {
+                        enemy.name = ubimonNickname;
+                        EnemyCaptured();
+                    }
+                    GUI.enabled = true;
+
+                    r = new Rect(center.x + 10, center.y + 2 * btnHeight, btnWidth, btnHeight);
+                    if (GUI.Button(r, "NO"))
+                        EnemyCaptured();
+                    break;
+
+
+                // Is it in picking mode?
+                case TURN_PICK:
                     GUI.Label(labelRect, "A wild " + enemy.prototype.name + " appeared... You must pick a ubimon to use!");
 
                     ubimonContainer.OnGUI();
@@ -477,7 +530,7 @@ public class GameController : MonoBehaviour, UOSApplication, Logger
 
 
                 // Is it my turn?
-                case 0:
+                case TURN_MINE:
                     r = new Rect(20, 0.7f * Screen.height, 0.5f * Screen.width - 30, 0.15f * Screen.height - 15);
                     if (GUI.Button(r, "ATTACK"))
                         BattleAttack();
@@ -488,7 +541,7 @@ public class GameController : MonoBehaviour, UOSApplication, Logger
 
                     r = new Rect(20, 0.85f * Screen.height + 5, 0.5f * Screen.width - 30, 0.15f * Screen.height - 15);
                     if (GUI.Button(r, "SWITCH"))
-                        turn = -1;
+                        turn = TURN_PICK;
 
                     r = new Rect(center.x + 5, 0.85f * Screen.height + 5, 0.5f * Screen.width - 30, 0.15f * Screen.height - 15);
                     if (GUI.Button(r, "RUN"))
@@ -503,38 +556,85 @@ public class GameController : MonoBehaviour, UOSApplication, Logger
 
     private void BattleAttack()
     {
-        float damage = battlingUbimon.maxLife / 10f;
+        float damage = battlingUbimon.maxLife * 1.5f / 10f;
         float defense = enemy.maxLife / 20f;
         damage = Mathf.Max(damage - defense, 1);
         int intDamage = Mathf.CeilToInt(damage);
         enemy.life -= intDamage;
         battleMessage = battlingUbimon.name + " attacked you and took " + intDamage + "!";
+
+        if (enemy.life <= 0)
+        {
+            nextTurn = TURN_EXIT;
+            battleMessage += " The wild " + enemy.prototype.name + " fainted! You won this round!";
+        }
     }
 
     private void BattleAuraBall()
     {
-        float p = (float)(enemy.maxLife - enemy.life) / enemy.maxLife;
+        float p = Mathf.Max(enemy.maxLife - enemy.life, 1f) / enemy.maxLife;
         if (Random.Range(0f, 1f) <= p)
         {
             battleMessage = "Yes! You caught " + enemy.prototype.name + "!";
-            nextTurn = -2;
+            nextTurn = TURN_CAPTURED;
         }
         else
-            battleMessage = "Oh noes! He got away!";
+            battleMessage = "Oh noes! It was so close, but he got away!";
     }
 
     private void BattleRun()
     {
+        float p = (enemy.maxLife - 0.5f * enemy.life) / enemy.maxLife;
+        if (Random.Range(0f, 1f) <= p)
+        {
+            battleMessage = "You got away safely!";
+            nextTurn = TURN_EXIT;
+        }
+        else
+            battleMessage = "You couldn't get away!";
     }
 
     private void EnemyAI()
     {
+        Debug.Log("Enemy");
         float damage = enemy.maxLife / 10f;
         float defense = battlingUbimon.maxLife / 20f;
         damage = Mathf.Max(damage - defense, 1);
         int intDamage = Mathf.CeilToInt(damage);
         battlingUbimon.life -= intDamage;
         battleMessage = "Wild " + enemy.prototype.name + " attacked you and took " + intDamage + "!";
+
+        if (battlingUbimon.life <= 0)
+        {
+            battleMessage += " " + battlingUbimon.name + " fainted! ";
+
+            List<Ubimon> available = ubimons.FindAll(u => u.life > 0);
+            if (available.Count > 0)
+            {
+                ubimonContainer.icons = ubimonContainer.Fit(available);
+                turn = TURN_PICK;
+                battleMessage += "You have to pick another ubimon!";
+            }
+            else
+            {
+                nextTurn = TURN_EXIT;
+                battleMessage += "You have no more ubimon to battle... You ran away like a chicken!";
+            }
+        }
+    }
+
+    private void EnemyCaptured()
+    {
+        nextTurn = TURN_EXIT;
+        var newIcons = ubimonContainer.Fit(ubimons, enemy);
+        if (newIcons == null)
+            battleMessage = "You can't hold any more ubimon, you do not have enough space!";
+        else
+        {
+            ubimons.Add(enemy);
+            ubimonContainer.icons = newIcons;
+            battleMessage = "Your new ubimon was stored in the container!";
+        }
     }
 
 

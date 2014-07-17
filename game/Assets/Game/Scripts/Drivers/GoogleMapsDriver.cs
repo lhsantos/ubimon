@@ -89,6 +89,8 @@ public class GoogleMapsDriver : MonoBehaviour, UOSDriver
     /// </summary>
     public GlobalPosition pos { get; private set; }
 
+    public bool valid { get; private set; }
+
     public float metersPerPixel { get; private set; }
 
 
@@ -103,6 +105,7 @@ public class GoogleMapsDriver : MonoBehaviour, UOSDriver
     void Awake()
     {
         main = this;
+        valid = false;
     }
 
     /// <summary>
@@ -121,6 +124,7 @@ public class GoogleMapsDriver : MonoBehaviour, UOSDriver
                     tex.LoadImage(req.bytes);
                     renderer.material.color = Color.white;
                     renderer.material.mainTexture = tex;
+                    valid = true;
                 }
                 else
                     ((UnityGateway)uOS.gateway).logger.Log(req.error);

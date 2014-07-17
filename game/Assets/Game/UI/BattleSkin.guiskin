@@ -75,7 +75,7 @@ MonoBehaviour:
     m_Name: button
     m_Normal:
       m_Background: {fileID: 2800000, guid: caf9ecb52c7bad3419ec6760973201be, type: 3}
-      m_TextColor: {r: 0, g: 0, b: 0, a: 1}
+      m_TextColor: {r: .808823526, g: .808823526, b: .808823526, a: 1}
     m_Hover:
       m_Background: {fileID: 11003, guid: 0000000000000000e000000000000000, type: 0}
       m_TextColor: {r: 1, g: 1, b: 1, a: 1}
@@ -121,7 +121,7 @@ MonoBehaviour:
     m_FontSize: 16
     m_FontStyle: 1
     m_Alignment: 4
-    m_WordWrap: 0
+    m_WordWrap: 1
     m_RichText: 0
     m_TextClipping: 1
     m_ImagePosition: 0
@@ -294,10 +294,10 @@ MonoBehaviour:
       m_Right: 0
       m_Top: 0
       m_Bottom: 0
-    m_Font: {fileID: 0}
+    m_Font: {fileID: 12800000, guid: c4a7999e51e7bd04bb662c90f8f9d424, type: 3}
     m_FontSize: 0
-    m_FontStyle: 0
-    m_Alignment: 0
+    m_FontStyle: 1
+    m_Alignment: 4
     m_WordWrap: 0
     m_RichText: 0
     m_TextClipping: 1

@@ -37,6 +37,7 @@ public class StationWindow extends JFrame {
 
 		Ubimon u;
 
+		for (int i = 0; i < 4; ++i) {
 		u = new Ubimon();
 		u.setGameId(UUID.randomUUID().toString());
 		u.setPrototype("pikachu");
@@ -91,6 +92,8 @@ public class StationWindow extends JFrame {
 		u.setLife(100);
 		u.setMaxLife(100);
 		ubimonDao.insert(u);
+		}
+		
 		init();
 	}
 
