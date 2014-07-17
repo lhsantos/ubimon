@@ -23,6 +23,9 @@ public class UbimonData
     public Sprite sprite;
     public Ubimon.Type[] types;
     public Vector2 refResolution = new Vector2(1366, 768);
+
+    public Texture2D texture { get; set; }
+    public Vector2 textureSize { get; set; }
 }
 
 #if UNITY_EDITOR
@@ -76,6 +79,12 @@ public class UbimonDatabase : ScriptableObject
                     string fullPath = Path.Combine(Path.Combine("Assets", ASSET_PATH), ASSET_NAME + ASSET_EXT);
                     AssetDatabase.CreateAsset(_instance, fullPath);
 #endif
+                }
+
+                foreach (var ud in _instance.ubimons)
+                {
+                    ud.texture = ud.sprite.texture;
+                    ud.textureSize = new Vector2(ud.texture.width, ud.texture.height);
                 }
             }
 

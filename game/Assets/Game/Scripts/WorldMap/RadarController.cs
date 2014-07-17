@@ -17,12 +17,14 @@ public class RadarController : MonoBehaviour
     private Transform range = null;
     private Dictionary<string, GameObject> markers = new Dictionary<string, GameObject>();
 
+    public static RadarController main { get; private set; }
 
     /// <summary>
     /// Called when this component is created.
     /// </summary>
     void Awake()
     {
+        main = this;
     }
 
     /// <summary>
@@ -39,7 +41,16 @@ public class RadarController : MonoBehaviour
     /// </summary>
     void OnDisable()
     {
+        foreach (Transform child in transform)
+        {
+            if (child.name == "wave")
+                Destroy(child.gameObject);
+        }
+
         Destroy(range.gameObject);
+        foreach (var pair in markers)
+            GameObject.Destroy(pair.Value);
+        markers = new Dictionary<string, GameObject>();
     }
 
     void LateUpdate()
@@ -61,12 +72,12 @@ public class RadarController : MonoBehaviour
             Vector2 p = WorldMapController.main.PixelPosition(entity.pos);
             Vector2 newPos = new Vector2(p.x - screenCenter.x, screenCenter.y - p.y); // the coordinate system is inverted on y!
             marker.transform.localScale = Util.SpriteScale(GameController.refResolution, screenSize);
-            marker.transform.localPosition = newPos;
+            marker.transform.localPosition = new Vector3(newPos.x, newPos.y, -2);
 
             // Fixes label position.
             Transform label = marker.transform.FindChild("label");
             float sign = Mathf.Sign(newPos.y);
-            label.localPosition = sign * Mathf.Abs(label.localPosition.y) * Vector3.up;
+            label.localPosition = new Vector3(0, sign * Mathf.Abs(label.localPosition.y), -2);
             label.GetComponent<TextMesh>().anchor = (sign > 0) ? TextAnchor.LowerCenter : TextAnchor.UpperCenter;
 
             newMarkers[entity.name] = marker;
@@ -93,7 +104,7 @@ public class RadarController : MonoBehaviour
             waveTimer += waveEmissionTime;
 
             GameObject wave = CreateWave();
-            Vector3 targetScale = new Vector3(0.95f, 0.95f, 1.0f);
+            Vector3 targetScale = new Vector3(0.9f, 0.9f, 1.0f);
             range.localScale = targetScale;
 
             iTween.ScaleTo(
@@ -143,11 +154,11 @@ public class RadarController : MonoBehaviour
                 s = gatheringIcon;
                 break;
         }
-        GameObject marker = CreateChildSprite(entity.name, s, Vector3.zero, Quaternion.identity, Vector3.one);
+        GameObject marker = CreateChildSprite(entity.name, s, 2 * Vector3.back, Quaternion.identity, Vector3.one);
         GameObject label = (GameObject)GameObject.Instantiate(labelPrefab);
         label.name = "label";
         label.transform.parent = marker.transform;
-        label.transform.localPosition = (s.bounds.extents.y + 5) * Vector3.up;
+        label.transform.localPosition = new Vector3(0, s.bounds.extents.y + 5, -2);
         label.transform.localRotation = Quaternion.identity;
         label.transform.localScale = Vector3.one;
         label.GetComponent<TextMesh>().text = entity.name;

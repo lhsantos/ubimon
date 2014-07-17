@@ -15,36 +15,46 @@ public class Ubimon
         Grass
     }
 
-    public UbimonData prototype { get; private set; }
+    public UbimonData prototype { get; set; }
+    public string id;
     public string trainer;
     public string name;
     public int level;
-    public List<Move> moves { get; private set; }
+    public List<Move> moves { get; set; }
+    public int life;
+    public int maxLife;
 
+    public Ubimon()
+    {
+    }
 
-    public static Ubimon Deserialise(IDictionary<string, object> json)
+    public static Ubimon FromJSON(IDictionary<string, object> json, UbimonDatabase db)
     {
         var ubimon = new Ubimon();
-        ubimon.prototype = UbimonDatabase.instance.GetUbimonData(json["prototype"] as string);
+        ubimon.prototype = db.GetUbimonData(json["prototype"] as string);
+        ubimon.id = json["id"] as string;
         ubimon.trainer = json["trainer"] as string;
         ubimon.name = json["name"] as string;
         ubimon.level = int.Parse(json["level"].ToString());
         ubimon.moves = new List<Move>();
         foreach (var move in (json["moves"] as IList<object>))
-            ubimon.moves.Add(UbimonDatabase.instance.GetMove(move as string));
+            ubimon.moves.Add(db.GetMove(move as string));
+        ubimon.life = int.Parse(json["life"].ToString());
+        ubimon.maxLife = int.Parse(json["maxLife"].ToString());
 
         return ubimon;
     }
 
-    public static Ubimon Deserialise(string json)
+    public static Ubimon FromJSON(string json, UbimonDatabase db)
     {
-        return Deserialise((IDictionary<string, object>)Json.Deserialize(json));
+        return FromJSON((IDictionary<string, object>)Json.Deserialize(json), db);
     }
 
-    public IDictionary<string, object> Serialise()
+    public IDictionary<string, object> ToJSON()
     {
         var json = new Dictionary<string, object>();
         json["prototype"] = prototype.name;
+        json["id"] = id;
         json["trainer"] = trainer;
         json["name"] = name;
         json["level"] = level;
@@ -52,6 +62,8 @@ public class Ubimon
         foreach (var move in moves)
             movesNames.Add(move.name);
         json["moves"] = movesNames;
+        json["life"] = life;
+        json["maxLife"] = maxLife;
 
         return json;
     }
@@ -62,8 +74,6 @@ public class Ubimon
     /// <returns></returns>
     public override string ToString()
     {
-        return Json.Serialize(Serialise());
+        return Json.Serialize(ToJSON());
     }
-
-    private Ubimon() { }
 }

@@ -50,9 +50,12 @@ public class Position {
 		this.delta = delta;
 	}
 
+	public double distanceTo(Position other) {
+		return haversine(latitude, longitude, other.latitude, other.longitude);
+	}
+
 	public boolean withinRange(Position other, double range) {
-		double d = haversine(latitude, longitude, other.latitude, other.longitude);
-		return (d - delta - other.delta) < range;
+		return (distanceTo(other) - delta - other.delta) < range;
 	}
 
 	/**

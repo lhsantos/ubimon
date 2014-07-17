@@ -17,6 +17,7 @@ public struct WorldEntity
     public string name;
     public string deviceDesc;
     public GlobalPosition pos;
+    public double distance;
     public Type type;
 
     public override string ToString()
@@ -60,15 +61,6 @@ public class WorldMapController : MonoBehaviour, UOSEventListener
     void Awake()
     {
         main = this;
-
-        //neighbours = new List<WorldEntity>();
-        //WorldEntity e = new WorldEntity();
-        //e.id = 14;
-        //e.deviceDesc = "desc";
-        //e.name = "laico";
-        //e.type = WorldEntity.Type.Station;
-        //e.pos = new GlobalPosition(-15.83161f, -47.98301f, 10);
-        //neighbours.Add(e);
     }
 
     /// <summary>
@@ -112,6 +104,20 @@ public class WorldMapController : MonoBehaviour, UOSEventListener
         this.gateway = (UnityGateway)gateway;
         this.clientName = SystemInfo.deviceUniqueIdentifier;
         (new Thread(PositionUpdateThread)).Start();
+    }
+
+    public void HideMap()
+    {
+        GoogleMapsDriver.main.enabled = false;
+        GoogleMapsDriver.main.renderer.enabled = false;
+        RadarController.main.enabled = false;
+    }
+
+    public void ShowMap()
+    {
+        GoogleMapsDriver.main.enabled = true;
+        GoogleMapsDriver.main.renderer.enabled = true;
+        RadarController.main.enabled = true;
     }
 
     /// <summary>
@@ -236,6 +242,7 @@ public class WorldMapController : MonoBehaviour, UOSEventListener
                         e.id = id;
                         e.name = data["name"] as string;
                         e.pos = GlobalPosition.FromJSON(data);
+                        e.distance = UOS.Util.ConvertOrParse<double>(data["distance"]);
 
                         object deviceDesc = data["device"];
                         e.deviceDesc = (deviceDesc is string) ? (string)deviceDesc : MiniJSON.Json.Serialize(deviceDesc);
@@ -249,6 +256,7 @@ public class WorldMapController : MonoBehaviour, UOSEventListener
                         list.Add(e);
                     }
                 }
+                list.Sort((a, b) => a.distance.CompareTo(b.distance));
                 neighbours = list;
             }
             catch (System.Exception e)

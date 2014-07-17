@@ -10,6 +10,7 @@ import org.ubimon.server.model.Position;
 import org.ubimon.server.persistence.ClientDao;
 import org.ubimon.server.uos.UosUtil;
 import org.unbiquitous.json.JSONArray;
+import org.unbiquitous.json.JSONObject;
 import org.unbiquitous.uos.core.InitialProperties;
 import org.unbiquitous.uos.core.UOSLogging;
 import org.unbiquitous.uos.core.adaptabitilyEngine.Gateway;
@@ -149,8 +150,11 @@ public class PositionRegistryDriver implements UosDriver {
 			List<Client> clients = dao.find(p, range);
 			JSONArray result = new JSONArray();
 			if (clients != null) {
-				for (Client client : clients)
-					result.put(UosUtil.serialize(client));
+				for (Client client : clients) {
+					JSONObject obj = UosUtil.serialize(client);
+					obj.put("distance", p.distanceTo(client.getPosition()));
+					result.put(obj);
+				}
 			}
 			response.addParameter("clients", result);
 		}

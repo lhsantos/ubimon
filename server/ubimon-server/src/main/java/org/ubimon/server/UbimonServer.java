@@ -1,10 +1,18 @@
 package org.ubimon.server;
 
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 
+import javax.swing.SwingUtilities;
+
 import org.ubimon.server.model.Position;
+import org.ubimon.server.model.Ubimon;
+import org.ubimon.server.station.StationWindow;
 import org.ubimon.server.uos.drivers.PositionRegistryDriver;
 import org.unbiquitous.uos.core.InitialProperties;
 import org.unbiquitous.uos.core.UOS;
@@ -20,6 +28,10 @@ import org.unbiquitous.uos.core.ontologyEngine.api.OntologyUndeploy;
 import org.unbiquitous.uos.network.socket.radar.MulticastRadar;
 
 public class UbimonServer implements UosApplication {
+	private static UOS uos;
+	private static boolean running;
+	private static StationWindow station;
+
 	/**
 	 * Entry point for this server.
 	 * 
@@ -39,25 +51,42 @@ public class UbimonServer implements UosApplication {
 		InitialProperties props = new MulticastRadar.Properties();
 		props.setDeviceName("ubimon-server");
 		props.addDriver(PositionRegistryDriver.class);
-		props.addApplication(UbimonServer.class);
+		props.addApplication(UbimonServer.class, "ubimon");
 
-		UOS uos = new UOS();
+		uos = new UOS();
 		uos.start(props);
+		running = true;
 
-		(new KeepPositionThread(uos, createStation ? "ubimon,station" : null)).start();
+		(new KeepPositionThread(createStation ? "ubimon,station" : null)).start();
+
+		if (createStation)
+			SwingUtilities.invokeLater(new Runnable() {
+				public void run() {
+					station = new StationWindow("laico");
+
+					station.addWindowListener(new WindowAdapter() {
+						@Override
+						public void windowClosing(WindowEvent e) {
+							running = false;
+							uos.stop();
+						}
+					});
+
+					station.setVisible(true);
+					station.setExtendedState(station.getExtendedState() | StationWindow.MAXIMIZED_BOTH);
+					station.setDefaultCloseOperation(StationWindow.EXIT_ON_CLOSE);
+				}
+			});
 	}
 
 	private static class KeepPositionThread extends Thread {
-		private UOS uos;
 		private Position myPos;
 		private String metadata;
 		private Integer posRegId;
 
-		public KeepPositionThread(UOS uos, String metadata) {
-			this.uos = uos;
-
-			this.myPos = new Position(-15.804479, -47.868465, 50); // CNMP
-
+		public KeepPositionThread(String metadata) {
+			// this.myPos = new Position(-15.804479, -47.868465, 50); // CNMP
+			this.myPos = new Position(-15.833204, -47.981353, 50); // Casa
 			this.metadata = metadata;
 		}
 
@@ -65,7 +94,7 @@ public class UbimonServer implements UosApplication {
 		public void run() {
 			try {
 				checkIn();
-				while (true) {
+				while (running) {
 					// Sleeps for one minute.
 					Thread.sleep(60 * 1000);
 					updatePos();
@@ -82,10 +111,8 @@ public class UbimonServer implements UosApplication {
 			call.addParameter("latitude", myPos.getLatitude());
 			call.addParameter("longitude", myPos.getLongitude());
 			call.addParameter("delta", myPos.getDelta());
-			if (metadata != null) {
-				System.out.println("included metadata");
+			if (metadata != null)
 				call.addParameter("metadata", metadata);
-			}
 
 			Gateway gateway = uos.getGateway();
 			Response r = gateway.callService(gateway.getCurrentDevice(), call);
@@ -104,6 +131,7 @@ public class UbimonServer implements UosApplication {
 		}
 	}
 
+	// // UOS interface ////
 	@Override
 	public void init(OntologyDeploy knowledgeBase, InitialProperties properties, String appId) {
 	}
@@ -111,9 +139,10 @@ public class UbimonServer implements UosApplication {
 	@Override
 	public void start(Gateway gateway, OntologyStart ontology) {
 		try {
-		System.out.println(gateway.getCurrentDevice().toJSON().toString());
+			System.out.println(gateway.getCurrentDevice().toJSON().toString());
 		}
-		catch (Throwable t){}
+		catch (Throwable t) {
+		}
 	}
 
 	@Override
@@ -122,5 +151,178 @@ public class UbimonServer implements UosApplication {
 
 	@Override
 	public void tearDown(OntologyUndeploy ontology) throws Exception {
+	}
+
+	public Map<String, Object> enter(Map<String, Object> parameters) {
+		Map<String, Object> response = new HashMap<String, Object>();
+		if (station == null)
+			response.put("error", "Station is not available!");
+		else {
+			Object playerId = parameters.get("playerId");
+			if (playerId == null)
+				response.put("error", "No player id provided.");
+			else {
+				try {
+					station.enter(playerId.toString());
+				}
+				catch (Exception e) {
+					response.put("error", e.getMessage());
+				}
+			}
+		}
+
+		return response;
+	}
+
+	public Map<String, Object> leave(Map<String, Object> parameters) {
+		Map<String, Object> response = new HashMap<String, Object>();
+		if (station != null)
+			station.leave();
+		return response;
+	}
+
+	public Map<String, Object> cursorToLeft(Map<String, Object> parameters) {
+		Map<String, Object> response = new HashMap<String, Object>();
+		if (station == null)
+			response.put("error", "Station is not available!");
+		else {
+			Object playerId = parameters.get("playerId");
+			if (playerId == null)
+				response.put("error", "No player id provided.");
+			else {
+				try {
+					station.cursorToLeft(playerId.toString());
+				}
+				catch (Exception e) {
+					response.put("error", e.getMessage());
+				}
+			}
+		}
+		return response;
+	}
+
+	public Map<String, Object> cursorToRight(Map<String, Object> parameters) {
+		Map<String, Object> response = new HashMap<String, Object>();
+		if (station == null)
+			response.put("error", "Station is not available!");
+		else {
+			Object playerId = parameters.get("playerId");
+			if (playerId == null)
+				response.put("error", "No player id provided.");
+			else {
+				try {
+					station.cursorToRight(playerId.toString());
+				}
+				catch (Exception e) {
+					response.put("error", e.getMessage());
+				}
+			}
+		}
+		return response;
+	}
+
+	public Map<String, Object> cursorToUp(Map<String, Object> parameters) {
+		Map<String, Object> response = new HashMap<String, Object>();
+		if (station == null)
+			response.put("error", "Station is not available!");
+		else {
+			Object playerId = parameters.get("playerId");
+			if (playerId == null)
+				response.put("error", "No player id provided.");
+			else {
+				try {
+					station.cursorToUp(playerId.toString());
+				}
+				catch (Exception e) {
+					response.put("error", e.getMessage());
+				}
+			}
+		}
+		return response;
+	}
+
+	public Map<String, Object> cursorToDown(Map<String, Object> parameters) {
+		Map<String, Object> response = new HashMap<String, Object>();
+		if (station == null)
+			response.put("error", "Station is not available!");
+		else {
+			Object playerId = parameters.get("playerId");
+			if (playerId == null)
+				response.put("error", "No player id provided.");
+			else {
+				try {
+					station.cursorToDown(playerId.toString());
+				}
+				catch (Exception e) {
+					response.put("error", e.getMessage());
+				}
+			}
+		}
+		return response;
+	}
+
+	public Map<String, Object> peek(Map<String, Object> parameters) {
+		Map<String, Object> response = new HashMap<String, Object>();
+		if (station == null)
+			response.put("error", "Station is not available!");
+		else {
+			Object playerId = parameters.get("playerId");
+			if (playerId == null)
+				response.put("error", "No player id provided.");
+			else {
+				try {
+					Ubimon ubimon = station.peek(playerId.toString());
+					if (ubimon != null)
+						response.put("ubimon", Ubimon.serialize(ubimon));
+				}
+				catch (Exception e) {
+					response.put("error", e.getMessage());
+				}
+			}
+		}
+		return response;
+	}
+
+	public Map<String, Object> removeSelected(Map<String, Object> parameters) {
+		Map<String, Object> response = new HashMap<String, Object>();
+		if (station == null)
+			response.put("error", "Station is not available!");
+		else {
+			Object playerId = parameters.get("playerId");
+			if (playerId == null)
+				response.put("error", "No player id provided.");
+			else {
+				try {
+					station.removeSelected(playerId.toString());
+				}
+				catch (Exception e) {
+					response.put("error", e.getMessage());
+				}
+			}
+		}
+		return response;
+	}
+
+	public Map<String, Object> store(Map<String, Object> parameters) {
+		Map<String, Object> response = new HashMap<String, Object>();
+		if (station == null)
+			response.put("error", "Station is not available!");
+		else {
+			Object playerId = parameters.get("playerId");
+			Object ubimon = parameters.get("ubimon");
+			if (playerId == null)
+				response.put("error", "No player id provided.");
+			else if (ubimon == null)
+				response.put("error", "No ubimon provided.");
+			else {
+				try {
+					station.store(playerId.toString(), ubimon.toString());
+				}
+				catch (Exception e) {
+					response.put("error", e.getMessage());
+				}
+			}
+		}
+		return response;
 	}
 }

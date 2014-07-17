@@ -23,8 +23,7 @@ public class BackgroundController : MonoBehaviour
         int size = Mathf.Max(Screen.width, Screen.height);
 
         // Updates game object size.
-        float scale = 2 * size * Camera.main.orthographicSize / Screen.height;
-        transform.localScale = new Vector3(scale, scale, 1);
+        transform.localScale = new Vector3(size, size, 1);
 
         // Updates gmaps texture size.
         size = Mathf.Min(GoogleMapsDriver.MAX_MAP_WIDTH, size);

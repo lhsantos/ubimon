@@ -14,8 +14,8 @@ import javax.persistence.TemporalType;
 
 @Entity
 public class Client implements Serializable {
-	private static final long serialVersionUID = 1L;
-
+	private static final long serialVersionUID = -8576504888632477012L;
+	
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Integer id; // unique database id

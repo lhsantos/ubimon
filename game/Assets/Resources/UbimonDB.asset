@@ -12,23 +12,23 @@ MonoBehaviour:
   m_Name: UbimonDB
   m_EditorClassIdentifier: 
   ubimons:
-  - name: Pikachu
+  - name: pikachu
     sprite: {fileID: 21300000, guid: ba61045851959044caf10313ef6435f6, type: 3}
     types: 02000000
     refResolution: {x: 1366, y: 768}
-  - name: Vulpix
+  - name: vulpix
     sprite: {fileID: 21300000, guid: 9578cd9188797214e8b6a32d8ab80dea, type: 3}
     types: 00000000
     refResolution: {x: 1366, y: 768}
-  - name: Pidgey
+  - name: pidgey
     sprite: {fileID: 21300000, guid: d02aa434e973006448c6abcd2f893640, type: 3}
     types: 03000000
     refResolution: {x: 1366, y: 768}
-  - name: Bellsprout
+  - name: bellsprout
     sprite: {fileID: 21300000, guid: 7ab905132710206449b8c264e45c3ec7, type: 3}
     types: 04000000
     refResolution: {x: 1366, y: 768}
-  - name: Poliwag
+  - name: poliwag
     sprite: {fileID: 21300000, guid: 261b77486d4e2314bbed96d7070396af, type: 3}
     types: 01000000
     refResolution: {x: 1366, y: 768}
